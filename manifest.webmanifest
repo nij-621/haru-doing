@@ -1,0 +1,43 @@
+{
+  "name": "하루두잉",
+  "short_name": "하루두잉",
+  "description": "나만의 하루 플래너 — 불렛저널 투두 + 타임라인",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf6ef",
+  "theme_color": "#ff7b54",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "새 할 일",
+      "url": "./?action=add",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "인박스",
+      "url": "./?tab=inbox",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "widgets": [
+    {
+      "name": "오늘 할 일",
+      "tag": "haru-today",
+      "description": "오늘의 할 일과 남은 개수를 보여줍니다",
+      "ms_ac_template": "widgets/today-card.json",
+      "data": "widgets/today-data.json",
+      "type": "application/json",
+      "auth": false,
+      "update": 900,
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }],
+      "screenshots": [{ "src": "icons/icon-512.png", "sizes": "512x512", "label": "오늘 할 일 위젯" }]
+    }
+  ]
+}

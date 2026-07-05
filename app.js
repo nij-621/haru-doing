@@ -1,0 +1,723 @@
+'use strict';
+/* 하루두잉 — 개인용 데일리 플래너 (두잉두잉 + Structured 스타일) */
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const pad = n => String(n).padStart(2, '0');
+const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseDate = s => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const todayStr = () => fmt(new Date());
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const MOODS = ['😄', '🙂', '😐', '😔', '😢', '😠', '🤒', '🥳'];
+const EMOJIS = ['📝', '💼', '📚', '🏃', '🍚', '🧹', '💊', '🛒', '💻', '☕', '🎨', '😴'];
+const COLORS = ['#ff7b54', '#4a90d9', '#4caf7d', '#e8a33d', '#b085d6', '#e05c7a', '#7a8a99'];
+const STATUS = {
+  todo:   { sym: '○', label: '대기' },
+  doing:  { sym: '◐', label: '진행중' },
+  done:   { sym: '✓', label: '완료' },
+  defer:  { sym: '→', label: '연기' },
+  cancel: { sym: '✕', label: '취소' },
+};
+const HOUR_PX = 56;
+
+/* ---------- 상태 ---------- */
+let tasks = [];      // 할 일 + 반복 템플릿 + 반복 인스턴스 오버라이드
+let days = {};       // 'YYYY-MM-DD' -> { mood, diary }
+let settings = { font: 'sans', size: 16, theme: 'auto', notify: false, view: 'list' };
+let cur = todayStr();       // 오늘 탭에서 보는 날짜
+let curMonth = cur.slice(0, 7); // 전체 탭에서 보는 달
+let tab = 'today';
+let editing = null;         // 모달에서 수정 중인 항목
+let notified = new Set();
+
+/* ---------- 저장/불러오기 ---------- */
+function load() {
+  try {
+    tasks = JSON.parse(localStorage.getItem('hd.tasks') || '[]');
+    days = JSON.parse(localStorage.getItem('hd.days') || '{}');
+    settings = Object.assign(settings, JSON.parse(localStorage.getItem('hd.settings') || '{}'));
+  } catch (e) { console.error('load fail', e); }
+}
+function save() {
+  localStorage.setItem('hd.tasks', JSON.stringify(tasks));
+  localStorage.setItem('hd.days', JSON.stringify(days));
+  localStorage.setItem('hd.settings', JSON.stringify(settings));
+  updateBadge();
+  updateWidgetData();
+}
+
+/* ---------- 반복 일정 ---------- */
+function repeatMatches(tpl, dateStr) {
+  if (dateStr < tpl.date) return false;
+  const d = parseDate(dateStr), t = parseDate(tpl.date);
+  if (tpl.repeat === 'daily') return true;
+  if (tpl.repeat === 'weekdays') return d.getDay() >= 1 && d.getDay() <= 5;
+  if (tpl.repeat === 'weekly') return d.getDay() === t.getDay();
+  return false;
+}
+
+/* 특정 날짜의 할 일 목록 (반복 인스턴스 포함) */
+function tasksForDay(dateStr) {
+  const out = tasks.filter(t => !t.repeat && t.date === dateStr && !t.hidden);
+  for (const tpl of tasks.filter(t => t.repeat)) {
+    if (!repeatMatches(tpl, dateStr)) continue;
+    const ov = tasks.find(o => o.repeatOf === tpl.id && o.date === dateStr);
+    if (ov) continue; // 이미 out에 포함됨(hidden이면 제외됨)
+    out.push({
+      id: 'v:' + tpl.id + ':' + dateStr, virtual: true, tplId: tpl.id,
+      title: tpl.title, emoji: tpl.emoji, color: tpl.color, note: tpl.note,
+      time: tpl.time, dur: tpl.dur, date: dateStr, status: 'todo', repeat: null,
+    });
+  }
+  out.sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99') || (a.createdAt || 0) - (b.createdAt || 0));
+  return out;
+}
+
+/* 가상 반복 인스턴스를 실제 레코드로 변환 */
+function materialize(inst) {
+  const t = {
+    id: uid(), title: inst.title, emoji: inst.emoji, color: inst.color, note: inst.note,
+    time: inst.time, dur: inst.dur, date: inst.date, status: inst.status,
+    repeatOf: inst.tplId, createdAt: Date.now(),
+  };
+  tasks.push(t);
+  return t;
+}
+
+/* ---------- 자동 이월 (두잉두잉: 진행중/연기 → 다음날) ---------- */
+function carryOver() {
+  const today = todayStr();
+  let n = 0;
+  for (const t of tasks) {
+    if (t.repeat || !t.date || t.date >= today || t.carried || t.hidden) continue;
+    if (t.status === 'doing' || t.status === 'defer') {
+      tasks.push({
+        id: uid(), title: t.title, emoji: t.emoji, color: t.color, note: t.note,
+        time: t.time, dur: t.dur, date: today, status: 'todo',
+        carriedFrom: t.date, createdAt: Date.now(),
+      });
+      t.carried = true;
+      n++;
+    }
+  }
+  if (n) { save(); }
+  return n;
+}
+
+/* ---------- 상태 변경 ---------- */
+function setStatus(item, st) {
+  let t = item.virtual ? materialize(item) : item;
+  t.status = st;
+  save();
+  render();
+}
+
+/* ---------- 렌더링 ---------- */
+function render() {
+  $$('#tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('#tab-today').hidden = tab !== 'today';
+  $('#tab-inbox').hidden = tab !== 'inbox';
+  $('#tab-month').hidden = tab !== 'month';
+  $('#tab-settings').hidden = tab !== 'settings';
+  $('#topbar').style.display = tab === 'today' ? '' : 'none';
+  $('#fab').hidden = tab === 'settings' || tab === 'month';
+  if (tab === 'today') renderToday();
+  if (tab === 'inbox') renderInbox();
+  if (tab === 'month') renderMonth();
+  if (tab === 'settings') renderSettings();
+}
+
+function renderToday() {
+  const d = parseDate(cur);
+  const isToday = cur === todayStr();
+  $('#btn-date').textContent = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})${isToday ? ' · 오늘' : ''}`;
+  $('#btn-view').textContent = settings.view === 'list' ? '🕐 타임라인' : '☰ 리스트';
+
+  // 기분 + 일기
+  const day = days[cur] || {};
+  const moodRow = $('#mood-row');
+  moodRow.innerHTML = '';
+  for (const m of MOODS) {
+    const b = document.createElement('button');
+    b.textContent = m;
+    b.classList.toggle('sel', day.mood === m);
+    b.onclick = () => {
+      days[cur] = days[cur] || {};
+      days[cur].mood = days[cur].mood === m ? null : m;
+      save(); renderToday();
+    };
+    moodRow.appendChild(b);
+  }
+  const diary = $('#diary-input');
+  if (diary.value !== (day.diary || '')) diary.value = day.diary || '';
+
+  // 이월 안내
+  const carried = tasksForDay(cur).filter(t => t.carriedFrom);
+  const note = $('#carry-note');
+  if (isToday && carried.length) {
+    note.hidden = false;
+    note.textContent = `↪ 어제 못 끝낸 할 일 ${carried.length}개가 오늘로 넘어왔어요.`;
+  } else note.hidden = true;
+
+  const list = tasksForDay(cur);
+  $('#list-view').hidden = settings.view !== 'list';
+  $('#timeline-view').hidden = settings.view !== 'timeline';
+  if (settings.view === 'list') renderListView(list);
+  else renderTimelineView(list, isToday);
+}
+
+function taskRow(t, opts = {}) {
+  const row = document.createElement('div');
+  row.className = 'task-row st-' + t.status;
+  row.style.setProperty('--tcolor', t.color || 'var(--line)');
+
+  const bullet = document.createElement('button');
+  bullet.className = 'bullet';
+  bullet.textContent = STATUS[t.status].sym;
+  bullet.title = STATUS[t.status].label;
+  bullet.onclick = e => { e.stopPropagation(); openStatusPopover(bullet, t); };
+  row.appendChild(bullet);
+
+  const main = document.createElement('div');
+  main.className = 'task-main';
+  const title = document.createElement('div');
+  title.className = 'task-title';
+  title.textContent = (t.emoji ? t.emoji + ' ' : '') + t.title;
+  main.appendChild(title);
+  const subs = [];
+  if (t.dur) subs.push(t.dur >= 60 ? `${Math.floor(t.dur / 60)}시간${t.dur % 60 ? ' ' + t.dur % 60 + '분' : ''}` : `${t.dur}분`);
+  if (t.tplId || t.repeatOf) subs.push('🔁 반복');
+  if (t.carriedFrom) subs.push('↪ 이월됨');
+  if (t.note) subs.push('📄 ' + t.note);
+  if (subs.length) {
+    const sub = document.createElement('div');
+    sub.className = 'task-sub';
+    sub.textContent = subs.join(' · ');
+    main.appendChild(sub);
+  }
+  row.appendChild(main);
+
+  if (t.time) {
+    const tm = document.createElement('div');
+    tm.className = 'task-time';
+    tm.textContent = t.time;
+    row.appendChild(tm);
+  }
+  if (opts.toToday) {
+    const b = document.createElement('button');
+    b.className = 'mini-btn';
+    b.textContent = '오늘로 →';
+    b.onclick = e => { e.stopPropagation(); t.date = todayStr(); save(); render(); };
+    row.appendChild(b);
+  }
+  row.onclick = () => openModal(t);
+  return row;
+}
+
+function renderListView(list) {
+  const el = $('#list-view');
+  el.innerHTML = '';
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-note">아직 할 일이 없어요.<br>＋ 버튼으로 첫 할 일을 적어보세요 ✎</div>';
+    return;
+  }
+  const timed = list.filter(t => t.time), untimed = list.filter(t => !t.time);
+  if (untimed.length) {
+    const h = document.createElement('div'); h.className = 'task-group-label'; h.textContent = '할 일';
+    el.appendChild(h);
+    untimed.forEach(t => el.appendChild(taskRow(t)));
+  }
+  if (timed.length) {
+    const h = document.createElement('div'); h.className = 'task-group-label'; h.textContent = '시간 일정';
+    el.appendChild(h);
+    timed.forEach(t => el.appendChild(taskRow(t)));
+  }
+}
+
+function renderTimelineView(list, isToday) {
+  const un = $('#tl-unsched');
+  un.innerHTML = '';
+  const untimed = list.filter(t => !t.time);
+  if (untimed.length) {
+    const h = document.createElement('div'); h.className = 'task-group-label'; h.textContent = '시간 미정';
+    un.appendChild(h);
+    untimed.forEach(t => un.appendChild(taskRow(t)));
+  }
+  const grid = $('#tl-grid');
+  grid.innerHTML = '';
+  grid.style.height = 24 * HOUR_PX + 'px';
+  for (let h = 0; h < 24; h++) {
+    const line = document.createElement('div');
+    line.className = 'tl-hour';
+    line.style.top = h * HOUR_PX + 'px';
+    line.style.height = HOUR_PX + 'px';
+    line.innerHTML = `<span>${pad(h)}:00</span>`;
+    line.onclick = e => {
+      const rect = line.getBoundingClientRect();
+      const min = (e.clientY - rect.top) > HOUR_PX / 2 ? 30 : 0;
+      openModal(null, { date: cur, time: `${pad(h)}:${pad(min)}` });
+    };
+    grid.appendChild(line);
+  }
+  for (const t of list.filter(t => t.time)) {
+    const [h, m] = t.time.split(':').map(Number);
+    const top = (h * 60 + m) / 60 * HOUR_PX;
+    const height = Math.max(((t.dur || 30) / 60) * HOUR_PX - 4, 26);
+    const b = document.createElement('div');
+    b.className = 'tl-block st-' + t.status;
+    b.style.setProperty('--tcolor', t.color || 'var(--accent)');
+    b.style.top = top + 'px';
+    b.style.height = height + 'px';
+    b.innerHTML = `<div class="t"></div><div class="s"></div>`;
+    b.querySelector('.t').textContent = `${STATUS[t.status].sym} ${t.emoji || ''} ${t.title}`;
+    b.querySelector('.s').textContent = t.time + (t.dur ? ` · ${t.dur}분` : '');
+    b.onclick = e => { e.stopPropagation(); openStatusPopover(b, t); };
+    b.ondblclick = e => { e.stopPropagation(); openModal(t); };
+    grid.appendChild(b);
+  }
+  if (isToday) {
+    const now = new Date();
+    const line = document.createElement('div');
+    line.id = 'now-line';
+    line.style.top = (now.getHours() * 60 + now.getMinutes()) / 60 * HOUR_PX + 'px';
+    grid.appendChild(line);
+    requestAnimationFrame(() => {
+      const y = line.offsetTop - window.innerHeight / 3;
+      window.scrollTo({ top: grid.getBoundingClientRect().top + window.scrollY + Math.max(y, 0) - 120 });
+    });
+  }
+}
+
+function renderInbox() {
+  const el = $('#inbox-list');
+  el.innerHTML = '';
+  const list = tasks.filter(t => !t.repeat && !t.date && !t.hidden);
+  if (!list.length) {
+    el.innerHTML = '<div class="empty-note">인박스가 비었어요.<br>생각난 일을 던져두면 나중에 정리할 수 있어요.</div>';
+    return;
+  }
+  list.forEach(t => el.appendChild(taskRow(t, { toToday: true })));
+}
+
+/* ---------- 검색 ---------- */
+let searchQuery = '';
+function renderSearch() {
+  const el = $('#search-results');
+  const q = searchQuery.toLowerCase();
+  el.innerHTML = '';
+  // 반복 템플릿 제외한 실제 기록(오늘 포함 과거·미래·인박스)을 제목/메모로 검색
+  const hits = tasks.filter(t =>
+    !t.repeat && !t.hidden &&
+    (t.title.toLowerCase().includes(q) || (t.note || '').toLowerCase().includes(q))
+  ).sort((a, b) => (b.date || '9999').localeCompare(a.date || '9999'));
+
+  const cnt = document.createElement('div');
+  cnt.id = 'search-count';
+  cnt.textContent = hits.length ? `${hits.length}개 찾음` : '검색 결과가 없어요.';
+  el.appendChild(cnt);
+
+  const today = todayStr();
+  for (const t of hits) {
+    const row = document.createElement('div');
+    row.className = 'day-row';
+    const dateCell = document.createElement('div');
+    dateCell.className = 'search-date';
+    if (t.date) {
+      const d = parseDate(t.date);
+      const rel = t.date === today ? '오늘' : `${WEEKDAYS[d.getDay()]}요일`;
+      dateCell.innerHTML = `<b>${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}</b>${rel}`;
+    } else {
+      dateCell.innerHTML = '<b>📥</b>인박스';
+    }
+    const sym = document.createElement('div');
+    sym.className = 'search-sym st-' + t.status;
+    sym.textContent = STATUS[t.status].sym;
+    sym.title = STATUS[t.status].label;
+    const info = document.createElement('div');
+    info.className = 'info';
+    info.style.color = 'var(--ink)';
+    info.textContent = (t.emoji ? t.emoji + ' ' : '') + t.title + (t.note ? ' — ' + t.note : '');
+    const cntCell = document.createElement('div');
+    cntCell.className = 'cnt';
+    cntCell.textContent = t.time || '';
+    row.append(dateCell, sym, info, cntCell);
+    row.onclick = () => {
+      if (t.date) { cur = t.date; tab = 'today'; }
+      else { tab = 'inbox'; }
+      render();
+    };
+    el.appendChild(row);
+  }
+  // 반복 일정 이름이 걸리면 안내
+  const tplHits = tasks.filter(t => t.repeat && t.title.toLowerCase().includes(q));
+  if (tplHits.length) {
+    const note = document.createElement('div');
+    note.id = 'search-count';
+    const label = { daily: '매일', weekdays: '평일', weekly: '매주' };
+    note.textContent = '🔁 반복 일정: ' + tplHits.map(t => `${t.title} (${label[t.repeat] || t.repeat}, ${t.date}부터)`).join(', ')
+      + ' — 위 목록에는 상태를 바꾼 날만 기록으로 남아요.';
+    el.appendChild(note);
+  }
+}
+
+function renderMonth() {
+  const searching = !!searchQuery.trim();
+  $('#search-results').hidden = !searching;
+  $('#search-clear').hidden = !searching;
+  $('.month-nav').style.display = searching ? 'none' : '';
+  $('#month-list').style.display = searching ? 'none' : '';
+  if (searching) { renderSearch(); return; }
+  const [y, m] = curMonth.split('-').map(Number);
+  $('#month-label').textContent = `${y}년 ${m}월`;
+  const el = $('#month-list');
+  el.innerHTML = '';
+  const daysIn = new Date(y, m, 0).getDate();
+  const today = todayStr();
+  for (let d = 1; d <= daysIn; d++) {
+    const ds = `${y}-${pad(m)}-${pad(d)}`;
+    const list = tasksForDay(ds);
+    const info = days[ds] || {};
+    if (!list.length && !info.mood && !info.diary && ds !== today) continue;
+    const done = list.filter(t => t.status === 'done').length;
+    const total = list.filter(t => t.status !== 'cancel').length;
+    const row = document.createElement('div');
+    row.className = 'day-row' + (ds === today ? ' today' : '');
+    row.innerHTML = `<div class="d">${d}일<small>${WEEKDAYS[parseDate(ds).getDay()]}요일</small></div>
+      <div class="m"></div><div class="info"></div><div class="cnt"></div>`;
+    row.querySelector('.m').textContent = info.mood || '·';
+    row.querySelector('.info').textContent = info.diary || (list[0] ? (list[0].emoji || '') + ' ' + list[0].title + (list.length > 1 ? ` 외 ${list.length - 1}건` : '') : '');
+    const cnt = row.querySelector('.cnt');
+    if (total) {
+      cnt.textContent = `${done}/${total}`;
+      if (done === total) cnt.classList.add('all-done');
+    }
+    row.onclick = () => { cur = ds; tab = 'today'; render(); };
+    el.appendChild(row);
+  }
+  if (!el.children.length) el.innerHTML = '<div class="empty-note">이 달에는 기록이 없어요.</div>';
+}
+
+function renderSettings() {
+  $('#set-font').value = settings.font;
+  $('#set-size').value = settings.size;
+  $('#set-theme').value = settings.theme;
+  $('#set-notify').checked = settings.notify;
+}
+
+function applySettings() {
+  document.documentElement.dataset.font = settings.font;
+  document.documentElement.style.setProperty('--fs', settings.size + 'px');
+  document.documentElement.style.setProperty('--fs-base', settings.size + 'px');
+  const dark = settings.theme === 'dark' || (settings.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+}
+
+/* ---------- 상태 팝오버 ---------- */
+function openStatusPopover(anchor, item) {
+  const pop = $('#popover');
+  pop.innerHTML = '';
+  for (const [key, s] of Object.entries(STATUS)) {
+    const b = document.createElement('button');
+    b.innerHTML = `${s.sym}<small>${s.label}</small>`;
+    b.onclick = e => { e.stopPropagation(); pop.hidden = true; setStatus(item, key); };
+    pop.appendChild(b);
+  }
+  pop.hidden = false;
+  const r = anchor.getBoundingClientRect();
+  const pw = pop.offsetWidth;
+  pop.style.left = Math.min(Math.max(r.left, 8), window.innerWidth - pw - 8) + 'px';
+  pop.style.top = (r.bottom + 6 + pop.offsetHeight > window.innerHeight ? r.top - pop.offsetHeight - 6 : r.bottom + 6) + 'px';
+}
+document.addEventListener('pointerdown', e => {
+  const pop = $('#popover');
+  if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.bullet')) pop.hidden = true;
+});
+
+/* ---------- 모달 ---------- */
+let fEmoji = '', fColor = COLORS[0];
+function openModal(item, preset = {}) {
+  editing = item;
+  $('#modal-title').textContent = item ? '할 일 수정' : '새 할 일';
+  $('#f-title').value = item ? item.title : '';
+  $('#f-date').value = item ? (item.date || '') : (preset.date !== undefined ? preset.date : (tab === 'inbox' ? '' : cur));
+  $('#f-time').value = item ? (item.time || '') : (preset.time || '');
+  $('#f-dur').value = item ? (item.dur || '') : (preset.time ? '60' : '');
+  $('#f-repeat').value = item ? (item.repeat || '') : '';
+  $('#f-repeat').disabled = !!(item && (item.tplId || item.repeatOf));
+  $('#f-note').value = item ? (item.note || '') : '';
+  fEmoji = item ? (item.emoji || '') : '';
+  fColor = item ? (item.color || COLORS[0]) : COLORS[0];
+  buildPicks();
+  $('#btn-del').hidden = !item;
+  $('#btn-del-series').hidden = !(item && (item.tplId || item.repeatOf));
+  $('#modal').hidden = false;
+  if (!item) $('#f-title').focus();
+}
+function closeModal() { $('#modal').hidden = true; editing = null; }
+
+function buildPicks() {
+  const ep = $('#emoji-picks');
+  ep.innerHTML = '';
+  for (const e of ['∅', ...EMOJIS]) {
+    const b = document.createElement('button');
+    b.textContent = e;
+    b.classList.toggle('sel', (e === '∅' ? '' : e) === fEmoji);
+    b.onclick = () => { fEmoji = e === '∅' ? '' : e; buildPicks(); };
+    ep.appendChild(b);
+  }
+  const cp = $('#color-picks');
+  cp.innerHTML = '';
+  for (const c of COLORS) {
+    const b = document.createElement('button');
+    b.style.background = c;
+    b.classList.toggle('sel', c === fColor);
+    b.onclick = () => { fColor = c; buildPicks(); };
+    cp.appendChild(b);
+  }
+}
+
+function saveModal() {
+  const title = $('#f-title').value.trim();
+  if (!title) { $('#f-title').focus(); return; }
+  const fields = {
+    title, emoji: fEmoji, color: fColor,
+    date: $('#f-date').value || null,
+    time: $('#f-time').value || null,
+    dur: $('#f-dur').value ? Number($('#f-dur').value) : null,
+    note: $('#f-note').value.trim() || null,
+  };
+  const repeat = $('#f-repeat').value || null;
+
+  if (editing) {
+    const t = editing.virtual ? materialize(editing) : editing;
+    Object.assign(t, fields);
+    if (!t.repeatOf && !t.repeat && repeat) { t.repeat = repeat; t.date = t.date || todayStr(); }
+    else if (t.repeat) t.repeat = repeat || t.repeat;
+  } else {
+    const t = { id: uid(), ...fields, status: 'todo', createdAt: Date.now() };
+    if (repeat) { t.repeat = repeat; t.date = t.date || todayStr(); }
+    tasks.push(t);
+  }
+  save();
+  closeModal();
+  render();
+}
+
+function deleteEditing(series) {
+  if (!editing) return;
+  if (series) {
+    const tplId = editing.tplId || editing.repeatOf;
+    if (!confirm('이 반복 일정을 전체 삭제할까요?')) return;
+    tasks = tasks.filter(t => t.id !== tplId && t.repeatOf !== tplId);
+  } else if (editing.virtual) {
+    const t = materialize(editing);
+    t.hidden = true;
+  } else {
+    tasks = tasks.filter(t => t.id !== editing.id);
+  }
+  save();
+  closeModal();
+  render();
+}
+
+/* ---------- 이미지로 저장 (두잉두잉) ---------- */
+function saveAsImage() {
+  const list = tasksForDay(cur);
+  const day = days[cur] || {};
+  const d = parseDate(cur);
+  const W = 720, pad_ = 46, lh = 52;
+  const H = 210 + Math.max(list.length, 1) * lh + (day.diary ? 60 : 0) + 60;
+  const cv = $('#snap-canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const dark = document.documentElement.dataset.theme === 'dark';
+  ctx.fillStyle = dark ? '#221f1a' : '#faf6ef';
+  ctx.fillRect(0, 0, W, H);
+  const ink = dark ? '#ece5d8' : '#3e3a33', ink2 = dark ? '#9a9284' : '#8b8578';
+  ctx.fillStyle = ink;
+  ctx.font = 'bold 34px sans-serif';
+  ctx.fillText(`${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEKDAYS[d.getDay()]})`, pad_, 74);
+  if (day.mood) { ctx.font = '38px sans-serif'; ctx.fillText(day.mood, W - pad_ - 44, 76); }
+  ctx.strokeStyle = ink2; ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.moveTo(pad_, 104); ctx.lineTo(W - pad_, 104); ctx.stroke();
+  ctx.setLineDash([]);
+  let y = 160;
+  ctx.font = '26px sans-serif';
+  if (!list.length) { ctx.fillStyle = ink2; ctx.fillText('기록 없음', pad_, y); y += lh; }
+  const stColor = { todo: ink2, doing: '#4a90d9', done: '#4caf7d', defer: '#e8a33d', cancel: ink2 };
+  for (const t of list) {
+    ctx.fillStyle = stColor[t.status];
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText(STATUS[t.status].sym, pad_, y);
+    ctx.fillStyle = (t.status === 'done' || t.status === 'cancel') ? ink2 : ink;
+    ctx.font = '26px sans-serif';
+    const label = (t.time ? t.time + '  ' : '') + (t.emoji ? t.emoji + ' ' : '') + t.title;
+    ctx.fillText(label, pad_ + 44, y, W - pad_ * 2 - 44);
+    if (t.status === 'done' || t.status === 'cancel') {
+      const w = Math.min(ctx.measureText(label).width, W - pad_ * 2 - 44);
+      ctx.strokeStyle = ink2; ctx.beginPath();
+      ctx.moveTo(pad_ + 44, y - 9); ctx.lineTo(pad_ + 44 + w, y - 9); ctx.stroke();
+    }
+    y += lh;
+  }
+  if (day.diary) {
+    y += 16;
+    ctx.fillStyle = ink2; ctx.font = 'italic 24px sans-serif';
+    ctx.fillText('“' + day.diary + '”', pad_, y, W - pad_ * 2);
+    y += 40;
+  }
+  ctx.fillStyle = ink2; ctx.font = '18px sans-serif';
+  ctx.fillText('하루두잉', W - pad_ - 74, H - 26);
+  const a = document.createElement('a');
+  a.download = `하루두잉_${cur}.png`;
+  a.href = cv.toDataURL('image/png');
+  a.click();
+}
+
+/* ---------- 백업 ---------- */
+function exportData() {
+  const blob = new Blob([JSON.stringify({ tasks, days, settings, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.download = `하루두잉_백업_${todayStr()}.json`;
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importData(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data.tasks)) throw new Error('형식 오류');
+      if (!confirm(`백업(할 일 ${data.tasks.length}개)으로 현재 데이터를 덮어쓸까요?`)) return;
+      tasks = data.tasks; days = data.days || {}; settings = Object.assign(settings, data.settings || {});
+      save(); applySettings(); render();
+      alert('가져오기 완료!');
+    } catch (e) { alert('가져오기 실패: 올바른 백업 파일이 아니에요.'); }
+  };
+  r.readAsText(file);
+}
+
+/* ---------- 배지 / 위젯 / 알림 ---------- */
+function updateBadge() {
+  try {
+    if (!('setAppBadge' in navigator)) return;
+    const n = tasksForDay(todayStr()).filter(t => t.status === 'todo' || t.status === 'doing').length;
+    n ? navigator.setAppBadge(n) : navigator.clearAppBadge();
+  } catch (e) {}
+}
+
+async function updateWidgetData() {
+  try {
+    const list = tasksForDay(todayStr());
+    const day = days[todayStr()] || {};
+    const data = {
+      date: todayStr(), mood: day.mood || '',
+      remaining: list.filter(t => t.status === 'todo' || t.status === 'doing').length,
+      items: list.slice(0, 6).map(t => ({
+        sym: STATUS[t.status].sym,
+        text: (t.time ? t.time + ' ' : '') + (t.emoji ? t.emoji + ' ' : '') + t.title,
+      })),
+    };
+    const c = await caches.open('hd-widget');
+    await c.put('widgets/today-data.json', new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
+    navigator.serviceWorker?.controller?.postMessage({ type: 'widget-update' });
+  } catch (e) {}
+}
+
+function checkNotifications() {
+  if (!settings.notify || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const hm = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  for (const t of tasksForDay(todayStr())) {
+    if (t.time === hm && t.status === 'todo' && !notified.has(t.id)) {
+      notified.add(t.id);
+      try { new Notification('⏰ ' + (t.emoji ? t.emoji + ' ' : '') + t.title, { body: '지금 할 시간이에요!', icon: 'icons/icon-192.png' }); } catch (e) {}
+    }
+  }
+}
+
+/* ---------- 이벤트 바인딩 ---------- */
+function shiftDay(n) {
+  const d = parseDate(cur);
+  d.setDate(d.getDate() + n);
+  cur = fmt(d);
+  render();
+}
+
+function bind() {
+  $('#btn-prev').onclick = () => shiftDay(-1);
+  $('#btn-next').onclick = () => shiftDay(1);
+  $('#btn-today').onclick = () => { cur = todayStr(); render(); };
+  $('#btn-date').onclick = () => { cur = todayStr(); render(); };
+  $('#btn-view').onclick = () => { settings.view = settings.view === 'list' ? 'timeline' : 'list'; save(); render(); };
+  $('#btn-snap').onclick = saveAsImage;
+  $('#diary-input').addEventListener('change', e => {
+    days[cur] = days[cur] || {};
+    days[cur].diary = e.target.value.trim();
+    save();
+  });
+  $$('#tabbar button').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+  $('#fab').onclick = () => openModal(null, tab === 'inbox' ? { date: '' } : {});
+  $('#btn-save').onclick = saveModal;
+  $('#btn-cancel').onclick = closeModal;
+  $('#btn-del').onclick = () => deleteEditing(false);
+  $('#btn-del-series').onclick = () => deleteEditing(true);
+  $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+  $('#f-title').addEventListener('keydown', e => { if (e.key === 'Enter') saveModal(); });
+
+  $('#search-input').addEventListener('input', e => { searchQuery = e.target.value; renderMonth(); });
+  $('#search-clear').onclick = () => { searchQuery = ''; $('#search-input').value = ''; renderMonth(); };
+  $('#btn-mprev').onclick = () => { const [y, m] = curMonth.split('-').map(Number); curMonth = m === 1 ? `${y - 1}-12` : `${y}-${pad(m - 1)}`; render(); };
+  $('#btn-mnext').onclick = () => { const [y, m] = curMonth.split('-').map(Number); curMonth = m === 12 ? `${y + 1}-01` : `${y}-${pad(m + 1)}`; render(); };
+
+  $('#set-font').onchange = e => { settings.font = e.target.value; save(); applySettings(); };
+  $('#set-size').oninput = e => { settings.size = Number(e.target.value); save(); applySettings(); };
+  $('#set-theme').onchange = e => { settings.theme = e.target.value; save(); applySettings(); };
+  $('#set-notify').onchange = async e => {
+    if (e.target.checked && 'Notification' in window) {
+      const p = await Notification.requestPermission();
+      if (p !== 'granted') { e.target.checked = false; return; }
+    }
+    settings.notify = e.target.checked;
+    save();
+  };
+  $('#btn-export').onclick = exportData;
+  $('#btn-import').onclick = () => $('#import-file').click();
+  $('#import-file').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
+  $('#btn-wipe').onclick = () => {
+    if (!confirm('정말 모든 데이터를 지울까요? 되돌릴 수 없어요.')) return;
+    localStorage.removeItem('hd.tasks');
+    localStorage.removeItem('hd.days');
+    location.reload();
+  };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySettings);
+  // 다른 탭/창에서 데이터가 바뀌면 다시 불러오기
+  window.addEventListener('storage', () => { load(); applySettings(); render(); });
+}
+
+/* ---------- 시작 ---------- */
+function init() {
+  load();
+  applySettings();
+  bind();
+  carryOver();
+  // 앱 바로가기(manifest shortcuts) 처리
+  const q = new URLSearchParams(location.search);
+  if (q.get('tab') === 'inbox') tab = 'inbox';
+  render();
+  if (q.get('action') === 'add') openModal(null, {});
+  updateBadge();
+  updateWidgetData();
+  setInterval(checkNotifications, 30000);
+  setInterval(() => {
+    // 자정 넘어가면 이월 처리 + 오늘 갱신
+    if (tab === 'today' && cur === todayStr() && settings.view === 'timeline') renderToday();
+    carryOver() && render();
+  }, 60000);
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW 등록 실패', e));
+  }
+}
+init();
