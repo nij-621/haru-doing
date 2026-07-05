@@ -96,10 +96,12 @@ main{max-width:640px; margin:0 auto; padding:12px 14px}
 .tl-hour{position:absolute; left:0; right:0; border-bottom:1px solid var(--line); opacity:.55}
 .tl-hour span{position:absolute; top:-0.7em; left:0; font-size:.7rem; color:var(--ink2); background:var(--bg); padding-right:4px}
 .tl-block{
-  position:absolute; left:52px; right:6px; overflow:hidden; cursor:pointer;
+  position:absolute; left:52px; right:6px; overflow:hidden; cursor:grab;
   background:var(--card); border:1px solid var(--line); border-left:4px solid var(--tcolor,var(--accent));
   border-radius:10px; box-shadow:var(--shadow); padding:4px 8px; font-size:.85rem;
+  touch-action:none; user-select:none; -webkit-user-select:none;
 }
+.tl-block.dragging{opacity:.88; cursor:grabbing; box-shadow:0 8px 22px rgba(0,0,0,.3); z-index:10; border-color:var(--accent)}
 .tl-block .t{font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .tl-block .s{font-size:.72rem; color:var(--ink2)}
 .tl-block.st-done{opacity:.55}
@@ -165,6 +167,19 @@ main{max-width:640px; margin:0 auto; padding:12px 14px}
 #popover button{display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 9px; border-radius:10px; font-size:1.05rem; font-weight:700}
 #popover button small{font-size:.62rem; font-weight:400; color:var(--ink2)}
 #popover button:active{background:var(--accent-soft)}
+
+/* ---------- move dialog ---------- */
+#move-modal{position:fixed; inset:0; z-index:60; background:rgba(40,35,25,.35); display:flex; align-items:center; justify-content:center; padding:28px}
+#move-card{
+  width:100%; max-width:340px; background:var(--card); border-radius:24px; padding:16px;
+  box-shadow:0 12px 34px rgba(0,0,0,.28); display:flex; flex-direction:column; gap:10px;
+}
+.mv-btn{padding:13px; border-radius:16px; background:var(--bg); border:1px solid var(--line); font-weight:700; font-size:1rem}
+.mv-btn:active{background:var(--accent-soft)}
+.mv-btn.mv-top{background:transparent; border:none; font-size:1.05rem; padding:8px}
+#mv-date-row{display:flex; gap:8px}
+#mv-date-row input{flex:1}
+#mv-date-row .mv-btn{padding:9px 16px}
 
 /* ---------- modal ---------- */
 #modal{position:fixed; inset:0; z-index:50; background:rgba(40,35,25,.45); display:flex; align-items:flex-end; justify-content:center}

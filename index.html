@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>하루두잉</title>
+<title>HaruDoing</title>
 <meta name="theme-color" content="#FF7B54">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
@@ -17,23 +17,23 @@
 
 <header id="topbar">
   <div class="date-nav">
-    <button id="btn-prev" class="icon-btn" aria-label="이전 날">‹</button>
+    <button id="btn-prev" class="icon-btn" aria-label="Previous day">‹</button>
     <button id="btn-date" class="date-label"></button>
-    <button id="btn-next" class="icon-btn" aria-label="다음 날">›</button>
+    <button id="btn-next" class="icon-btn" aria-label="Next day">›</button>
   </div>
   <div class="top-actions">
-    <button id="btn-today" class="chip-btn">오늘</button>
-    <button id="btn-view" class="chip-btn" title="리스트/타임라인 전환">🕐 타임라인</button>
-    <button id="btn-snap" class="icon-btn" title="이미지로 저장">📷</button>
+    <button id="btn-today" class="chip-btn">Today</button>
+    <button id="btn-view" class="chip-btn" title="Switch list/timeline">🕐 Timeline</button>
+    <button id="btn-snap" class="icon-btn" title="Save as image">📷</button>
   </div>
 </header>
 
 <main>
-  <!-- 오늘 탭 -->
+  <!-- Today tab -->
   <section id="tab-today">
     <div id="mood-card" class="card">
       <div id="mood-row"></div>
-      <input id="diary-input" type="text" maxlength="120" placeholder="오늘의 한줄일기 ✎">
+      <input id="diary-input" type="text" maxlength="120" placeholder="One-line diary for today ✎">
     </div>
     <div id="carry-note" class="carry-note" hidden></div>
     <div id="list-view"></div>
@@ -43,17 +43,17 @@
     </div>
   </section>
 
-  <!-- 인박스 탭 -->
+  <!-- Inbox tab -->
   <section id="tab-inbox" hidden>
-    <h2 class="section-title">📥 인박스</h2>
-    <p class="section-desc">날짜를 정하지 않은 할 일을 담아두는 곳이에요. 준비되면 오늘로 보내세요.</p>
+    <h2 class="section-title">📥 Inbox</h2>
+    <p class="section-desc">A place for tasks without a date. Send them to today when you're ready.</p>
     <div id="inbox-list"></div>
   </section>
 
-  <!-- 전체(월별) 탭 -->
+  <!-- All (monthly) tab -->
   <section id="tab-month" hidden>
     <div id="search-bar">
-      <input id="search-input" type="search" placeholder="🔍 할 일 검색 — 언제 했었는지 찾아보기">
+      <input id="search-input" type="search" placeholder="🔍 Search tasks — find when you did something">
       <button id="search-clear" class="icon-btn" hidden>✕</button>
     </div>
     <div id="search-results" hidden></div>
@@ -65,100 +65,113 @@
     <div id="month-list"></div>
   </section>
 
-  <!-- 설정 탭 -->
+  <!-- Settings tab -->
   <section id="tab-settings" hidden>
-    <h2 class="section-title">⚙️ 설정</h2>
+    <h2 class="section-title">⚙️ Settings</h2>
     <div class="card set-card">
-      <label class="set-row">글씨체
+      <label class="set-row">Font
         <select id="set-font">
-          <option value="sans">기본</option>
-          <option value="gaegu">개구체 (손글씨)</option>
-          <option value="pen">나눔펜 (손글씨)</option>
-          <option value="dodum">고운돋움</option>
+          <option value="sans">Default</option>
+          <option value="gaegu">Gaegu (handwriting)</option>
+          <option value="pen">Nanum Pen (handwriting)</option>
+          <option value="dodum">Gowun Dodum</option>
         </select>
       </label>
-      <label class="set-row">글씨 크기
+      <label class="set-row">Font size
         <input id="set-size" type="range" min="14" max="20" step="1">
       </label>
-      <label class="set-row">테마
+      <label class="set-row">Theme
         <select id="set-theme">
-          <option value="auto">시스템 따라가기</option>
-          <option value="light">라이트</option>
-          <option value="dark">다크</option>
+          <option value="auto">Follow system</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
         </select>
       </label>
-      <label class="set-row">할 일 시간 알림
+      <label class="set-row">Task time notifications
         <input id="set-notify" type="checkbox">
       </label>
     </div>
     <div class="card set-card">
-      <button id="btn-export" class="wide-btn">📤 데이터 내보내기 (백업)</button>
-      <button id="btn-import" class="wide-btn">📥 데이터 가져오기</button>
+      <button id="btn-export" class="wide-btn">📤 Export data (backup)</button>
+      <button id="btn-import" class="wide-btn">📥 Import data</button>
       <input id="import-file" type="file" accept=".json" hidden>
-      <button id="btn-wipe" class="wide-btn danger">🗑 모든 데이터 지우기</button>
+      <button id="btn-wipe" class="wide-btn danger">🗑 Delete all data</button>
     </div>
-    <p class="about">하루두잉 · 나만의 하루 플래너<br>모든 데이터는 이 기기 안에만 저장됩니다.</p>
+    <p class="about">HaruDoing · my personal day planner<br>All data stays on this device only.</p>
   </section>
 </main>
 
-<button id="fab" aria-label="새 할 일">＋</button>
+<button id="fab" aria-label="New task">＋</button>
 
 <nav id="tabbar">
-  <button data-tab="today" class="active">🏠<span>오늘</span></button>
-  <button data-tab="inbox">📥<span>인박스</span></button>
-  <button data-tab="month">📅<span>전체</span></button>
-  <button data-tab="settings">⚙️<span>설정</span></button>
+  <button data-tab="today" class="active">🏠<span>Today</span></button>
+  <button data-tab="inbox">📥<span>Inbox</span></button>
+  <button data-tab="month">📅<span>All</span></button>
+  <button data-tab="settings">⚙️<span>Settings</span></button>
 </nav>
 
-<!-- 상태 선택 팝오버 -->
+<!-- Status picker popover -->
 <div id="popover" hidden></div>
 
-<!-- 할 일 추가/수정 모달 -->
+<!-- Move task dialog (shown after Doing/Defer) -->
+<div id="move-modal" hidden>
+  <div id="move-card">
+    <button id="mv-tomorrow" class="mv-btn mv-top">＋ Add to tomorrow's tasks</button>
+    <button id="mv-pick" class="mv-btn">Pick another date</button>
+    <div id="mv-date-row" hidden>
+      <input id="mv-date" type="date">
+      <button id="mv-date-go" class="mv-btn">Move</button>
+    </div>
+    <button id="mv-ok" class="mv-btn">OK</button>
+  </div>
+</div>
+
+<!-- Add/edit task modal -->
 <div id="modal" hidden>
   <div id="modal-card" class="card">
-    <h3 id="modal-title">새 할 일</h3>
-    <input id="f-title" type="text" placeholder="무엇을 할까요?" maxlength="80">
+    <h3 id="modal-title">New task</h3>
+    <input id="f-title" type="text" placeholder="What will you do?" maxlength="80">
     <div class="f-row">
-      <label>아이콘</label>
+      <label>Icon</label>
       <div id="emoji-picks"></div>
     </div>
     <div class="f-row">
-      <label>색상</label>
+      <label>Color</label>
       <div id="color-picks"></div>
     </div>
     <div class="f-row two">
-      <label>날짜 <input id="f-date" type="date"></label>
-      <label>시간 <input id="f-time" type="time"></label>
+      <label>Date <input id="f-date" type="date"></label>
+      <label>Time <input id="f-time" type="time"></label>
     </div>
     <div class="f-row two">
-      <label>소요시간
+      <label>Duration
         <select id="f-dur">
           <option value="">-</option>
-          <option value="15">15분</option>
-          <option value="30">30분</option>
-          <option value="45">45분</option>
-          <option value="60">1시간</option>
-          <option value="90">1시간 30분</option>
-          <option value="120">2시간</option>
-          <option value="180">3시간</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+          <option value="45">45 min</option>
+          <option value="60">1 hour</option>
+          <option value="90">1.5 hours</option>
+          <option value="120">2 hours</option>
+          <option value="180">3 hours</option>
         </select>
       </label>
-      <label>반복
+      <label>Repeat
         <select id="f-repeat">
-          <option value="">없음</option>
-          <option value="daily">매일</option>
-          <option value="weekdays">평일</option>
-          <option value="weekly">매주</option>
+          <option value="">None</option>
+          <option value="daily">Daily</option>
+          <option value="weekdays">Weekdays</option>
+          <option value="weekly">Weekly</option>
         </select>
       </label>
     </div>
-    <textarea id="f-note" rows="2" placeholder="메모 (선택)"></textarea>
+    <textarea id="f-note" rows="2" placeholder="Notes (optional)"></textarea>
     <div id="modal-btns">
-      <button id="btn-del" class="chip-btn danger" hidden>삭제</button>
-      <button id="btn-del-series" class="chip-btn danger" hidden>반복 전체 삭제</button>
+      <button id="btn-del" class="chip-btn danger" hidden>Delete</button>
+      <button id="btn-del-series" class="chip-btn danger" hidden>Delete series</button>
       <span class="spacer"></span>
-      <button id="btn-cancel" class="chip-btn">취소</button>
-      <button id="btn-save" class="chip-btn primary">저장</button>
+      <button id="btn-cancel" class="chip-btn">Cancel</button>
+      <button id="btn-save" class="chip-btn primary">Save</button>
     </div>
   </div>
 </div>
