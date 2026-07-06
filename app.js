@@ -275,6 +275,10 @@ function renderTimelineView(list, isToday) {
   }
   const grid = $('#tl-grid');
   grid.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'tl-hint';
+  hint.textContent = '↕ Drag a block to reschedule (touch: press & hold, then drag)';
+  un.appendChild(hint);
   grid.style.height = 24 * HOUR_PX + 'px';
   for (let h = 0; h < 24; h++) {
     const line = document.createElement('div');
@@ -334,11 +338,13 @@ function attachDrag(b, t) {
     b.classList.add('dragging');
     try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
   };
+  // 길게 누르기를 브라우저가 가로채지 않도록 (Android 컨텍스트 메뉴 등)
+  b.addEventListener('contextmenu', e => e.preventDefault());
   b.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     sy = e.clientY; sTop = b.offsetTop; mode = 'wait';
     if (e.pointerType === 'mouse') mode = 'mouse-wait';
-    else timer = setTimeout(arm, 300);
+    else timer = setTimeout(arm, 250);
     try { b.setPointerCapture(e.pointerId); } catch (err) {}
   });
   b.addEventListener('pointermove', e => {
@@ -631,9 +637,9 @@ function saveAsImage() {
   cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
   const dark = document.documentElement.dataset.theme === 'dark';
-  ctx.fillStyle = dark ? '#221f1a' : '#faf6ef';
+  ctx.fillStyle = dark ? '#171614' : '#f6f5f3';
   ctx.fillRect(0, 0, W, H);
-  const ink = dark ? '#ece5d8' : '#3e3a33', ink2 = dark ? '#9a9284' : '#8b8578';
+  const ink = dark ? '#edeae4' : '#292723', ink2 = dark ? '#97928a' : '#8d897f';
   ctx.fillStyle = ink;
   ctx.font = 'bold 34px sans-serif';
   ctx.fillText(`${MONTHS[d.getMonth()]} ${d.getDate()} (${WEEKDAYS[d.getDay()]})`, pad_, 74);
@@ -644,7 +650,7 @@ function saveAsImage() {
   let y = 160;
   ctx.font = '26px sans-serif';
   if (!list.length) { ctx.fillStyle = ink2; ctx.fillText('No entries', pad_, y); y += lh; }
-  const stColor = { todo: ink2, doing: '#4a90d9', done: '#4caf7d', defer: '#e8a33d', cancel: ink2 };
+  const stColor = { todo: ink2, doing: '#4e80c9', done: '#3fa372', defer: '#d99a3d', cancel: ink2 };
   for (const t of list) {
     ctx.fillStyle = stColor[t.status];
     ctx.font = 'bold 26px sans-serif';
