@@ -29,18 +29,43 @@ const pad = n => String(n).padStart(2, "0");
 const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseDate = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 
-// ── 백업 파일 찾기 (가장 최근 것) ──
+// ── 백업 파일 찾기 (여러 위치에서 가장 최근 것) ──
+// 검색 순서: ① "HaruDoing" 폴더 북마크(Downloads 등 원하는 폴더)
+//            ② iCloud Drive/Scriptable   ③ On My iPhone/Scriptable
+function collectBackups(fm, dir, isICloud, out) {
+  try {
+    if (!fm.isDirectory(dir)) {
+      // 북마크가 폴더가 아니라 파일 하나를 직접 가리키는 경우
+      if (/HaruDoing_backup.*\.json$/i.test(dir)) out.push({ fm, path: dir, isICloud, mtime: fm.modificationDate(dir) });
+      return;
+    }
+    for (const f of fm.listContents(dir)) {
+      if (!/^HaruDoing_backup.*\.json$/i.test(f)) continue;
+      const p = fm.joinPath(dir, f);
+      out.push({ fm, path: p, isICloud, mtime: fm.modificationDate(p) });
+    }
+  } catch (e) {}
+}
+
 async function loadBackup() {
-  const fm = FileManager.iCloud();
-  const dir = fm.documentsDirectory();
-  const files = fm.listContents(dir).filter(f => /^HaruDoing_backup.*\.json$/i.test(f));
-  if (!files.length) return null;
-  files.sort((a, b) => fm.modificationDate(fm.joinPath(dir, b)) - fm.modificationDate(fm.joinPath(dir, a)));
-  const path = fm.joinPath(dir, files[0]);
-  await fm.downloadFileFromiCloud(path);
-  const data = JSON.parse(fm.readString(path));
-  data._file = files[0];
-  data._modified = fm.modificationDate(path);
+  const out = [];
+  const icloud = FileManager.iCloud();
+  const local = FileManager.local();
+  // ① Scriptable 설정 → File Bookmarks 에 "HaruDoing"으로 등록한 폴더/파일
+  try {
+    if (icloud.bookmarkExists("HaruDoing")) collectBackups(icloud, icloud.bookmarkedPath("HaruDoing"), true, out);
+  } catch (e) {}
+  // ② iCloud Drive/Scriptable
+  collectBackups(icloud, icloud.documentsDirectory(), true, out);
+  // ③ On My iPhone/Scriptable
+  collectBackups(local, local.documentsDirectory(), false, out);
+  if (!out.length) return null;
+  out.sort((a, b) => b.mtime - a.mtime);
+  const best = out[0];
+  if (best.isICloud) { try { await best.fm.downloadFileFromiCloud(best.path); } catch (e) {} }
+  const data = JSON.parse(best.fm.readString(best.path));
+  data._file = best.path.split("/").pop();
+  data._modified = best.mtime;
   return data;
 }
 
@@ -101,8 +126,8 @@ async function makeWidget() {
     t1.font = Font.boldRoundedSystemFont(16);
     t1.textColor = C.accent;
     w.addSpacer(6);
-    const t2 = w.addText("백업 파일을 찾지 못했어요.\n앱 Settings → Export data →\n'파일에 저장' → iCloud Drive → Scriptable");
-    t2.font = Font.regularRoundedSystemFont(12);
+    const t2 = w.addText("백업 파일을 찾지 못했어요.\n앱 Settings → Export data 후\n'파일에 저장'으로 아래 중 한 곳에:\n· iCloud Drive/Scriptable\n· 원하는 폴더 + 북마크 'HaruDoing'");
+    t2.font = Font.regularRoundedSystemFont(11);
     t2.textColor = C.ink2;
     return w;
   }
