@@ -32,19 +32,29 @@ const parseDate = s => { const [y, m, d] = s.split("-").map(Number); return new 
 // ── 백업 파일 찾기 (여러 위치에서 가장 최근 것) ──
 // 검색 순서: ① "HaruDoing" 폴더 북마크(Downloads 등 원하는 폴더)
 //            ② iCloud Drive/Scriptable   ③ On My iPhone/Scriptable
+// 참고: 아직 기기에 내려받지 않은 iCloud 파일은 목록에서
+//       ".이름.json.icloud" 형태로 보이므로 그것도 처리한다.
+function realName(f) {
+  return (f.startsWith(".") && f.endsWith(".icloud")) ? f.slice(1, -7) : f;
+}
 function collectBackups(fm, dir, isICloud, out) {
   try {
     if (!fm.isDirectory(dir)) {
-      // 북마크가 폴더가 아니라 파일 하나를 직접 가리키는 경우
-      if (/HaruDoing_backup.*\.json$/i.test(dir)) out.push({ fm, path: dir, isICloud, mtime: fm.modificationDate(dir) });
+      if (/\.json(\.icloud)?$/i.test(dir)) out.push({ fm, path: dir, isICloud, named: true, mtime: safeMtime(fm, dir) });
       return;
     }
     for (const f of fm.listContents(dir)) {
-      if (!/^HaruDoing_backup.*\.json$/i.test(f)) continue;
-      const p = fm.joinPath(dir, f);
-      out.push({ fm, path: p, isICloud, mtime: fm.modificationDate(p) });
+      const name = realName(f);
+      if (!/\.json$/i.test(name)) continue;
+      const named = /harudoing/i.test(name); // HaruDoing 이름이 붙은 백업 우선
+      const p = fm.joinPath(dir, name);
+      let mtime = safeMtime(fm, p) || safeMtime(fm, fm.joinPath(dir, f));
+      out.push({ fm, path: p, isICloud, named, mtime: mtime || new Date(0) });
     }
   } catch (e) {}
+}
+function safeMtime(fm, p) {
+  try { return fm.modificationDate(p); } catch (e) { return null; }
 }
 
 async function loadBackup() {
@@ -59,14 +69,22 @@ async function loadBackup() {
   collectBackups(icloud, icloud.documentsDirectory(), true, out);
   // ③ On My iPhone/Scriptable
   collectBackups(local, local.documentsDirectory(), false, out);
-  if (!out.length) return null;
-  out.sort((a, b) => b.mtime - a.mtime);
-  const best = out[0];
-  if (best.isICloud) { try { await best.fm.downloadFileFromiCloud(best.path); } catch (e) {} }
-  const data = JSON.parse(best.fm.readString(best.path));
-  data._file = best.path.split("/").pop();
-  data._modified = best.mtime;
-  return data;
+  // HaruDoing 이름이 붙은 파일 우선, 그 안에서 최신순.
+  // 이름이 바뀐 경우를 대비해 다른 .json도 후순위로 시도한다.
+  out.sort((a, b) => (b.named - a.named) || (b.mtime - a.mtime));
+  for (const cand of out) {
+    try {
+      if (cand.isICloud) { try { await cand.fm.downloadFileFromiCloud(cand.path); } catch (e) {} }
+      const raw = cand.fm.readString(cand.path);
+      if (!raw) continue;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data.tasks)) continue; // 하루두잉 백업이 맞는지 확인
+      data._file = cand.path.split("/").pop();
+      data._modified = cand.mtime;
+      return data;
+    } catch (e) {}
+  }
+  return null;
 }
 
 // ── 앱과 동일한 로직으로 오늘 할 일 계산 ──
