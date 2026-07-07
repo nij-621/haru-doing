@@ -23,14 +23,18 @@
   </div>
   <div class="top-actions">
     <button id="btn-today" class="chip-btn">Today</button>
-    <button id="btn-view" class="chip-btn" title="Switch list/timeline">🕐 Timeline</button>
-    <button id="btn-snap" class="icon-btn" title="Save as image">📷</button>
+    <div id="view-seg" role="group" aria-label="View mode">
+      <button data-view="list">List</button>
+      <button data-view="timeline">Timeline</button>
+    </div>
+    <button id="btn-snap" class="icon-btn" title="Save as image" aria-label="Save as image"><span data-ui-icon="ui-camera" data-size="20"></span></button>
   </div>
 </header>
 
 <main>
   <!-- Today tab -->
   <section id="tab-today">
+    <div id="next-up" hidden></div>
     <div id="mood-card" class="card">
       <div id="mood-row"></div>
       <input id="diary-input" type="text" maxlength="120" placeholder="One-line diary for today ✎">
@@ -45,7 +49,7 @@
 
   <!-- Inbox tab -->
   <section id="tab-inbox" hidden>
-    <h2 class="section-title">📥 Inbox</h2>
+    <h2 class="section-title"><span data-ui-icon="ui-inbox" data-size="22"></span>Inbox</h2>
     <p class="section-desc">A place for tasks without a date. Send them to today when you're ready.</p>
     <div id="inbox-list"></div>
   </section>
@@ -53,7 +57,7 @@
   <!-- All (monthly) tab -->
   <section id="tab-month" hidden>
     <div id="search-bar">
-      <input id="search-input" type="search" placeholder="🔍 Search tasks — find when you did something">
+      <input id="search-input" type="search" placeholder="Search tasks — find when you did something">
       <button id="search-clear" class="icon-btn" hidden>✕</button>
     </div>
     <div id="search-results" hidden></div>
@@ -67,7 +71,7 @@
 
   <!-- Settings tab -->
   <section id="tab-settings" hidden>
-    <h2 class="section-title">⚙️ Settings</h2>
+    <h2 class="section-title"><span data-ui-icon="ui-settings" data-size="22"></span>Settings</h2>
     <div class="card set-card">
       <label class="set-row">Font
         <select id="set-font">
@@ -92,22 +96,22 @@
       </label>
     </div>
     <div class="card set-card">
-      <button id="btn-export" class="wide-btn">📤 Export data (backup)</button>
-      <button id="btn-import" class="wide-btn">📥 Import data</button>
+      <button id="btn-export" class="wide-btn"><span data-ui-icon="ui-export" data-size="17"></span>Export data (backup)</button>
+      <button id="btn-import" class="wide-btn"><span data-ui-icon="ui-import" data-size="17"></span>Import data</button>
       <input id="import-file" type="file" accept=".json" hidden>
-      <button id="btn-wipe" class="wide-btn danger">🗑 Delete all data</button>
+      <button id="btn-wipe" class="wide-btn danger"><span data-ui-icon="trash" data-size="17"></span>Delete all data</button>
     </div>
     <p class="about">HaruDoing · my personal day planner<br>All data stays on this device only.</p>
   </section>
 </main>
 
-<button id="fab" aria-label="New task">＋</button>
+<button id="fab" aria-label="New task"><span data-ui-icon="ui-plus" data-size="26"></span></button>
 
 <nav id="tabbar">
-  <button data-tab="today" class="active">🏠<span>Today</span></button>
-  <button data-tab="inbox">📥<span>Inbox</span></button>
-  <button data-tab="month">📅<span>All</span></button>
-  <button data-tab="settings">⚙️<span>Settings</span></button>
+  <button data-tab="today" class="active"><span class="nav-ico" data-ui-icon="home" data-size="23"></span><span>Today</span></button>
+  <button data-tab="inbox"><span class="nav-ico" data-ui-icon="ui-inbox" data-size="23"></span><span>Inbox</span></button>
+  <button data-tab="month"><span class="nav-ico" data-ui-icon="ui-all" data-size="23"></span><span>All</span></button>
+  <button data-tab="settings"><span class="nav-ico" data-ui-icon="ui-settings" data-size="23"></span><span>Settings</span></button>
 </nav>
 
 <!-- Status picker popover -->
@@ -177,6 +181,8 @@
 </div>
 
 <canvas id="snap-canvas" hidden></canvas>
+<script src="icons-data.js"></script>
+<script src="icons.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

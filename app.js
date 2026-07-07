@@ -11,7 +11,6 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MOODS = ['😄', '🙂', '😐', '😔', '😢', '😠', '🤒', '🥳'];
-const EMOJIS = ['📝', '💼', '📚', '🏃', '🍚', '🧹', '💊', '🛒', '💻', '☕', '🎨', '😴'];
 const COLORS = ['#ff7b54', '#4a90d9', '#4caf7d', '#e8a33d', '#b085d6', '#e05c7a', '#7a8a99'];
 const STATUS = {
   todo:   { sym: '○', label: 'To-do' },
@@ -161,7 +160,7 @@ function renderToday() {
   const d = parseDate(cur);
   const isToday = cur === todayStr();
   $('#btn-date').textContent = `${MONTHS[d.getMonth()]} ${d.getDate()} (${WEEKDAYS[d.getDay()]})${isToday ? ' · Today' : ''}`;
-  $('#btn-view').textContent = settings.view === 'list' ? '🕐 Timeline' : '☰ List';
+  $$('#view-seg button').forEach(b => b.classList.toggle('active', b.dataset.view === settings.view));
 
   // 기분 + 일기
   const day = days[cur] || {};
@@ -190,10 +189,53 @@ function renderToday() {
   } else note.hidden = true;
 
   const list = tasksForDay(cur);
+  renderNextUp(list, isToday);
   $('#list-view').hidden = settings.view !== 'list';
   $('#timeline-view').hidden = settings.view !== 'timeline';
   if (settings.view === 'list') renderListView(list);
   else renderTimelineView(list, isToday);
+}
+
+/* ---------- Next up: 지금 해야 할 일 하이라이트 ---------- */
+function renderNextUp(list, isToday) {
+  const el = $('#next-up');
+  if (!isToday) { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  el.innerHTML = '';
+  const label = document.createElement('div');
+  label.className = 'task-group-label';
+  el.appendChild(label);
+
+  const active = list.filter(t => t.status === 'todo' || t.status === 'doing');
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  // 아직 끝나지 않은(종료 시각이 지금 이후인) 가장 이른 시간 일정
+  const timed = active.filter(t => {
+    if (!t.time) return false;
+    const [h, m] = t.time.split(':').map(Number);
+    return h * 60 + m + (t.dur || 30) > nowMins;
+  });
+  let pick = timed[0] || null; // list가 시간순 정렬되어 있음
+  let suffix = '';
+  if (pick) {
+    const [h, m] = pick.time.split(':').map(Number);
+    if (h * 60 + m <= nowMins) suffix = ' · now';
+  } else {
+    pick = active.find(t => !t.time) || null;
+    if (pick) suffix = ' · no time set';
+  }
+  label.textContent = 'Next up' + suffix;
+
+  if (!pick) {
+    const empty = document.createElement('div');
+    empty.className = 'next-empty';
+    empty.textContent = 'No upcoming tasks';
+    el.appendChild(empty);
+    return;
+  }
+  const row = taskRow(pick);
+  row.classList.add('next-task');
+  el.appendChild(row);
 }
 
 function taskRow(t, opts = {}) {
@@ -212,17 +254,29 @@ function taskRow(t, opts = {}) {
   main.className = 'task-main';
   const title = document.createElement('div');
   title.className = 'task-title';
-  title.textContent = (t.emoji ? t.emoji + ' ' : '') + t.title;
+  const iconId = resolveIcon(t.emoji);
+  if (iconId) title.appendChild(IconBadge(iconId, { size: 15 }));
+  const txt = document.createElement('span');
+  txt.className = 't-text';
+  txt.textContent = t.title;
+  title.appendChild(txt);
   main.appendChild(title);
   const subs = [];
-  if (t.dur) subs.push(t.dur >= 60 ? `${Math.floor(t.dur / 60)}h${t.dur % 60 ? ' ' + t.dur % 60 + 'm' : ''}` : `${t.dur}m`);
-  if (t.tplId || t.repeatOf) subs.push('🔁 Repeats');
-  if (t.carriedFrom) subs.push('↪ Carried over');
-  if (t.note) subs.push('📄 ' + t.note);
+  if (t.dur) subs.push([null, t.dur >= 60 ? `${Math.floor(t.dur / 60)}h${t.dur % 60 ? ' ' + t.dur % 60 + 'm' : ''}` : `${t.dur}m`]);
+  if (t.tplId || t.repeatOf) subs.push(['ui-repeat', 'Repeats']);
+  if (t.carriedFrom) subs.push(['ui-carried', 'Carried over']);
+  if (t.note) subs.push(['ui-notetext', t.note]);
   if (subs.length) {
     const sub = document.createElement('div');
     sub.className = 'task-sub';
-    sub.textContent = subs.join(' · ');
+    subs.forEach(([ic, text], i) => {
+      const s = document.createElement('span');
+      s.className = 'sub-item';
+      if (ic) s.innerHTML = iconSvg(ic, 11);
+      s.appendChild(document.createTextNode((ic ? ' ' : '') + text));
+      sub.appendChild(s);
+      if (i < subs.length - 1) sub.appendChild(document.createTextNode(' · '));
+    });
     main.appendChild(sub);
   }
   row.appendChild(main);
@@ -303,7 +357,17 @@ function renderTimelineView(list, isToday) {
     b.style.top = top + 'px';
     b.style.height = height + 'px';
     b.innerHTML = `<div class="t"></div><div class="s"></div>`;
-    b.querySelector('.t').textContent = `${STATUS[t.status].sym} ${t.emoji || ''} ${t.title}`;
+    const tEl = b.querySelector('.t');
+    tEl.textContent = '';
+    tEl.appendChild(document.createTextNode(STATUS[t.status].sym + ' '));
+    const blockIcon = resolveIcon(t.emoji);
+    if (blockIcon) {
+      const ic = document.createElement('span');
+      ic.className = 'tl-ico';
+      ic.innerHTML = iconSvg(blockIcon, 12);
+      tEl.appendChild(ic);
+    }
+    tEl.appendChild(document.createTextNode(' ' + t.title));
     b.querySelector('.s').textContent = t.time + (t.dur ? ` · ${t.dur}m` : '');
     b.onclick = e => {
       e.stopPropagation();
@@ -433,7 +497,7 @@ function renderSearch() {
       const rel = t.date === today ? 'Today' : WEEKDAYS[d.getDay()];
       dateCell.innerHTML = `<b>${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}</b>${rel}`;
     } else {
-      dateCell.innerHTML = '<b>📥</b>Inbox';
+      dateCell.innerHTML = '<b>' + iconSvg('ui-inbox', 14) + '</b>Inbox';
     }
     const sym = document.createElement('div');
     sym.className = 'search-sym st-' + t.status;
@@ -551,7 +615,7 @@ function openModal(item, preset = {}) {
   $('#f-repeat').value = item ? (item.repeat || '') : '';
   $('#f-repeat').disabled = !!(item && (item.tplId || item.repeatOf));
   $('#f-note').value = item ? (item.note || '') : '';
-  fEmoji = item ? (item.emoji || '') : '';
+  fEmoji = item ? (resolveIcon(item.emoji) || '') : '';
   fColor = item ? (item.color || COLORS[0]) : COLORS[0];
   buildPicks();
   $('#btn-del').hidden = !item;
@@ -561,15 +625,36 @@ function openModal(item, preset = {}) {
 }
 function closeModal() { $('#modal').hidden = true; editing = null; }
 
+/* TaskIconPicker: 카테고리별 라인 아이콘 선택 */
 function buildPicks() {
   const ep = $('#emoji-picks');
   ep.innerHTML = '';
-  for (const e of ['∅', ...EMOJIS]) {
+  const mkBtn = icon => {
     const b = document.createElement('button');
-    b.textContent = e;
-    b.classList.toggle('sel', (e === '∅' ? '' : e) === fEmoji);
-    b.onclick = () => { fEmoji = e === '∅' ? '' : e; buildPicks(); };
-    ep.appendChild(b);
+    b.type = 'button';
+    const val = icon.id === 'none' ? '' : icon.id;
+    b.className = 'pick-btn' + (fEmoji === val ? ' sel' : '');
+    b.title = icon.label;
+    b.setAttribute('aria-label', icon.label);
+    b.innerHTML = iconSvg(icon.id, 20);
+    b.onclick = () => { fEmoji = val; buildPicks(); };
+    return b;
+  };
+  const noneGrid = document.createElement('div');
+  noneGrid.className = 'pick-grid';
+  noneGrid.appendChild(mkBtn(TASK_ICONS[0]));
+  ep.appendChild(noneGrid);
+  for (const cat of ICON_CATEGORIES) {
+    const icons = TASK_ICONS.filter(i => i.category === cat.id && i.id !== 'none');
+    if (!icons.length) continue;
+    const label = document.createElement('div');
+    label.className = 'pick-cat';
+    label.textContent = cat.label;
+    ep.appendChild(label);
+    const grid = document.createElement('div');
+    grid.className = 'pick-grid';
+    icons.forEach(i => grid.appendChild(mkBtn(i)));
+    ep.appendChild(grid);
   }
   const cp = $('#color-picks');
   cp.innerHTML = '';
@@ -657,7 +742,9 @@ function saveAsImage() {
     ctx.fillText(STATUS[t.status].sym, pad_, y);
     ctx.fillStyle = (t.status === 'done' || t.status === 'cancel') ? ink2 : ink;
     ctx.font = '26px sans-serif';
-    const label = (t.time ? t.time + '  ' : '') + (t.emoji ? t.emoji + ' ' : '') + t.title;
+    // 아이콘 id/구 이모지는 캔버스에 그리지 않음 (라인 아이콘은 텍스트로 표현 불가)
+    const drawEmoji = t.emoji && !TASK_ICON_IDS.has(t.emoji) && !EMOJI_TO_ICON[t.emoji];
+    const label = (t.time ? t.time + '  ' : '') + (drawEmoji ? t.emoji + ' ' : '') + t.title;
     ctx.fillText(label, pad_ + 44, y, W - pad_ * 2 - 44);
     if (t.status === 'done' || t.status === 'cancel') {
       const w = Math.min(ctx.measureText(label).width, W - pad_ * 2 - 44);
@@ -756,7 +843,12 @@ function bind() {
   $('#btn-next').onclick = () => shiftDay(1);
   $('#btn-today').onclick = () => { cur = todayStr(); render(); };
   $('#btn-date').onclick = () => { cur = todayStr(); render(); };
-  $('#btn-view').onclick = () => { settings.view = settings.view === 'list' ? 'timeline' : 'list'; save(); render(); };
+  $$('#view-seg button').forEach(b => b.onclick = () => {
+    if (settings.view === b.dataset.view) return;
+    settings.view = b.dataset.view;
+    save();
+    render();
+  });
   $('#btn-snap').onclick = saveAsImage;
   $('#diary-input').addEventListener('change', e => {
     days[cur] = days[cur] || {};
@@ -812,9 +904,16 @@ function bind() {
 }
 
 /* ---------- 시작 ---------- */
+function hydrateUiIcons() {
+  $$('[data-ui-icon]').forEach(el => {
+    el.innerHTML = iconSvg(el.dataset.uiIcon, Number(el.dataset.size) || 20);
+  });
+}
+
 function init() {
   load();
   applySettings();
+  hydrateUiIcons();
   bind();
   carryOver();
   // 앱 바로가기(manifest shortcuts) 처리

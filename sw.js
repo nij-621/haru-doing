@@ -1,7 +1,7 @@
 /* 하루두잉 서비스 워커: 오프라인 캐시 + (Windows 11 Edge) 위젯 */
-const CACHE = 'hd-shell-v1';
+const CACHE = 'hd-shell-v2';
 const SHELL = [
-  './', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest',
+  './', 'index.html', 'style.css', 'app.js', 'icons.js', 'icons-data.js', 'manifest.webmanifest',
   'icons/icon-192.png', 'icons/icon-512.png',
   'widgets/today-card.json', 'widgets/today-data.json',
 ];

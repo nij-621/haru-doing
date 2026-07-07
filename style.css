@@ -60,6 +60,14 @@ input:focus,select:focus,textarea:focus{
   border:1px solid var(--line); background:var(--card); border-radius:999px;
   padding:6px 10px; font-size:.78rem; font-weight:700; color:var(--ink); white-space:nowrap;
 }
+.chip-btn svg{vertical-align:-2px}
+#view-seg{display:flex; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:2px}
+#view-seg button{border-radius:999px; padding:4px 9px; font-size:.72rem; font-weight:700; color:var(--ink2); white-space:nowrap}
+#view-seg button.active{background:var(--accent); color:#fff}
+#view-seg button:not(.active):active{background:var(--accent-soft); color:var(--ink)}
+.tl-ico svg{vertical-align:-1px; opacity:.85}
+#fab span{display:flex}
+.search-date b svg{vertical-align:-2px}
 .chip-btn:active{transform:scale(.96); background:var(--bg)}
 .chip-btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
 .chip-btn.primary:active{background:var(--accent); filter:brightness(.94)}
@@ -75,13 +83,22 @@ main{max-width:640px; margin:0 auto; padding:16px}
 /* ---------- cards ---------- */
 .card{background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow); padding:14px}
 
-/* ---------- mood / diary ---------- */
-#mood-card{margin-bottom:14px}
-#mood-row{display:flex; gap:2px; justify-content:space-between; margin-bottom:10px}
-#mood-row button{font-size:1.3rem; padding:5px; border-radius:12px; filter:grayscale(1); opacity:.4; transition:.18s}
-#mood-row button.sel{filter:none; opacity:1; transform:scale(1.18); background:var(--accent-soft)}
+/* ---------- next up ---------- */
+#next-up{margin:2px 0 16px}
+#next-up .task-group-label{color:var(--accent-ink); margin:0 6px 8px}
+.task-row.next-task{border:1.5px solid var(--accent); margin-bottom:0}
+.next-empty{
+  font-size:.85rem; color:var(--ink2); text-align:center;
+  background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px;
+}
+
+/* ---------- mood / diary (compact) ---------- */
+#mood-card{margin-bottom:16px; padding:9px 12px; box-shadow:none}
+#mood-row{display:flex; gap:2px; justify-content:space-between; margin-bottom:7px}
+#mood-row button{font-size:1.05rem; padding:3px 4px; border-radius:10px; filter:grayscale(1); opacity:.4; transition:.18s}
+#mood-row button.sel{filter:none; opacity:1; transform:scale(1.12); background:var(--accent-soft)}
 @media(hover:hover){#mood-row button:hover{opacity:.75; filter:grayscale(.3)}}
-#diary-input{width:100%; background:var(--bg); border:1px solid transparent; border-radius:10px; padding:9px 12px; font-size:.95rem}
+#diary-input{width:100%; background:var(--bg); border:1px solid transparent; border-radius:10px; padding:6px 10px; font-size:.85rem}
 #diary-input::placeholder{color:var(--ink2)}
 
 .carry-note{font-size:.8rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); border-radius:12px; padding:9px 14px; margin-bottom:12px}
@@ -110,9 +127,22 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .task-row.st-defer .bullet{border-color:var(--defer); color:var(--defer); background:color-mix(in srgb,var(--defer) 10%,transparent)}
 .task-row.st-cancel .bullet{border-color:var(--line); color:var(--cancel)}
 .task-main{flex:1; min-width:0}
-.task-title{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.st-done .task-title,.st-cancel .task-title{text-decoration:line-through; text-decoration-thickness:1.5px; color:var(--ink2); font-weight:400}
-.task-sub{font-size:.76rem; color:var(--ink2); display:flex; gap:8px; flex-wrap:wrap}
+.task-title{font-weight:600; display:flex; align-items:center; gap:7px; min-width:0}
+.task-title .t-text{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.st-done .task-title .t-text,.st-cancel .task-title .t-text{text-decoration:line-through; text-decoration-thickness:1.5px; color:var(--ink2); font-weight:400}
+.st-done .icon-badge,.st-cancel .icon-badge{opacity:.5}
+.task-sub{font-size:.76rem; color:var(--ink2); display:flex; align-items:center; flex-wrap:wrap; white-space:pre}
+.task-sub .sub-item{display:inline-flex; align-items:center; gap:2px}
+.task-sub svg{opacity:.75; flex:none}
+
+/* ---------- icon badge ---------- */
+.icon-badge{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:26px; height:26px; border-radius:8px;
+  background:var(--bg); color:var(--ink2);
+}
+.icon-badge.selected{background:var(--accent-soft); color:var(--accent)}
+.icon-badge svg{display:block}
 .task-time{flex:none; font-size:.82rem; font-weight:700; color:var(--ink2); font-variant-numeric:tabular-nums}
 .mini-btn{flex:none; font-size:.76rem; font-weight:700; border:none; border-radius:999px; padding:6px 12px; background:var(--accent-soft); color:var(--accent-ink)}
 .mini-btn:active{transform:scale(.95)}
@@ -143,7 +173,8 @@ main{max-width:640px; margin:0 auto; padding:16px}
 #now-line::before{content:''; position:absolute; left:-6px; top:-5px; width:8px; height:8px; border-radius:50%; background:#e5484d}
 
 /* ---------- inbox / month ---------- */
-.section-title{margin:8px 4px 4px; font-size:1.3rem; font-weight:800; letter-spacing:-.02em}
+.section-title{margin:8px 4px 4px; font-size:1.3rem; font-weight:800; letter-spacing:-.02em; display:flex; align-items:center; gap:8px}
+.section-title svg{color:var(--accent)}
 .section-desc{margin:0 4px 16px; font-size:.82rem; color:var(--ink2)}
 .month-nav{display:flex; align-items:center; justify-content:center; gap:14px; margin:8px 0 16px; font-weight:800; font-size:1.05rem}
 .day-row{
@@ -181,9 +212,11 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .set-row input[type=range]:focus{box-shadow:none}
 .set-row input[type=checkbox]{width:22px; height:22px; accent-color:var(--accent); padding:0}
 .wide-btn{
-  display:block; width:100%; text-align:center; padding:12px; font-weight:700; font-size:.92rem;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:12px; font-weight:700; font-size:.92rem;
   border:none; border-radius:12px; background:var(--bg); color:var(--ink);
 }
+.wide-btn svg{flex:none}
 .wide-btn:active{transform:scale(.98); background:var(--accent-soft)}
 @media(hover:hover){.wide-btn:hover{background:var(--accent-soft)}}
 .wide-btn.danger{color:#d6453d}
@@ -205,10 +238,10 @@ main{max-width:640px; margin:0 auto; padding:16px}
   border-top:1px solid var(--line);
   padding-bottom:env(safe-area-inset-bottom);
 }
-#tabbar button{flex:1; padding:9px 0 7px; font-size:1.2rem; color:var(--ink2); display:flex; flex-direction:column; align-items:center; gap:2px; border-radius:0}
+#tabbar button{flex:1; padding:9px 0 7px; color:var(--ink2); display:flex; flex-direction:column; align-items:center; gap:3px; border-radius:0}
 #tabbar button span{font-size:.66rem; font-weight:700; letter-spacing:.02em}
+#tabbar button .nav-ico{display:flex}
 #tabbar button.active{color:var(--accent)}
-#tabbar button:not(.active){filter:grayscale(1); opacity:.72}
 #tabbar button:active{transform:scale(.94)}
 
 /* ---------- popover ---------- */
@@ -257,10 +290,17 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .f-row.two{display:flex; gap:10px}
 .f-row.two label{flex:1; display:flex; flex-direction:column; font-size:.72rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; gap:6px}
 .f-row.two input,.f-row.two select{width:100%}
-#emoji-picks,#color-picks{display:flex; gap:6px; flex-wrap:wrap}
-#emoji-picks button{font-size:1.2rem; width:38px; height:38px; border-radius:12px; border:1.5px solid transparent; background:var(--bg)}
-#emoji-picks button.sel{border-color:var(--accent); background:var(--accent-soft)}
-#emoji-picks button:active{transform:scale(.92)}
+#color-picks{display:flex; gap:6px; flex-wrap:wrap}
+#emoji-picks{max-height:216px; overflow-y:auto; padding-right:2px}
+.pick-grid{display:flex; gap:6px; flex-wrap:wrap}
+.pick-cat{font-size:.66rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; margin:10px 2px 6px}
+.pick-btn{
+  width:38px; height:38px; border-radius:12px; border:1.5px solid transparent;
+  background:var(--bg); color:var(--ink2);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.pick-btn.sel{border-color:var(--accent); background:var(--accent-soft); color:var(--accent)}
+.pick-btn:active{transform:scale(.92)}
 #color-picks button{width:28px; height:28px; border-radius:50%; border:2px solid transparent; background-clip:padding-box; box-shadow:0 0 0 1.5px transparent}
 #color-picks button.sel{box-shadow:0 0 0 2px var(--ink)}
 #color-picks button:active{transform:scale(.9)}

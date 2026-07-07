@@ -117,7 +117,9 @@ function taskRow(w, t, size) {
   sym.textColor = SYMCOLOR[t.status] || C.ink2;
   row.addSpacer(6);
   const doneish = t.status === "done" || t.status === "cancel";
-  const title = row.addText((t.emoji ? t.emoji + " " : "") + t.title);
+  // 앱이 라인 아이콘 id(예: 'work')를 저장하는 경우는 표시 생략, 진짜 이모지만 표시
+  const emoji = t.emoji && !/^[a-z][a-z0-9-]*$/.test(t.emoji) ? t.emoji + " " : "";
+  const title = row.addText(emoji + t.title);
   title.font = doneish ? Font.regularRoundedSystemFont(size) : Font.mediumRoundedSystemFont(size);
   title.textColor = doneish ? C.ink2 : C.ink;
   title.lineLimit = 1;
