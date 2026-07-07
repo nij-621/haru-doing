@@ -51,6 +51,10 @@
   <section id="tab-inbox" hidden>
     <h2 class="section-title"><span data-ui-icon="ui-inbox" data-size="22"></span>Inbox</h2>
     <p class="section-desc">A place for tasks without a date. Send them to today when you're ready.</p>
+    <div id="inbox-sort" role="group" aria-label="Sort inbox" hidden>
+      <button data-sort="recent">Recent</button>
+      <button data-sort="oldest">Oldest</button>
+    </div>
     <div id="inbox-list"></div>
   </section>
 
@@ -135,14 +139,6 @@
   <div id="modal-card" class="card">
     <h3 id="modal-title">New task</h3>
     <input id="f-title" type="text" placeholder="What will you do?" maxlength="80">
-    <div class="f-row">
-      <label>Icon</label>
-      <div id="emoji-picks"></div>
-    </div>
-    <div class="f-row">
-      <label>Color</label>
-      <div id="color-picks"></div>
-    </div>
     <div class="f-row two">
       <label>Date <input id="f-date" type="date"></label>
       <label>Time <input id="f-time" type="time"></label>
@@ -168,6 +164,16 @@
           <option value="weekly">Weekly</option>
         </select>
       </label>
+    </div>
+    <div class="f-secondary">
+      <div class="f-row">
+        <label>Icon</label>
+        <div id="emoji-picks"></div>
+      </div>
+      <div class="f-row">
+        <label>Color</label>
+        <div id="color-picks"></div>
+      </div>
     </div>
     <textarea id="f-note" rows="2" placeholder="Notes (optional)"></textarea>
     <div id="modal-btns">

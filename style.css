@@ -86,7 +86,7 @@ main{max-width:640px; margin:0 auto; padding:16px}
 /* ---------- next up ---------- */
 #next-up{margin:2px 0 16px}
 #next-up .task-group-label{color:var(--accent-ink); margin:0 6px 8px}
-.task-row.next-task{border:1.5px solid var(--accent); margin-bottom:0}
+#next-up .task-row.next-task{border:1.5px solid var(--accent); margin-bottom:0}
 .next-empty{
   font-size:.85rem; color:var(--ink2); text-align:center;
   background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px;
@@ -116,6 +116,25 @@ main{max-width:640px; margin:0 auto; padding:16px}
 }
 .task-row:active{transform:scale(.985)}
 @media(hover:hover){.task-row:hover{box-shadow:var(--shadow-lg); cursor:pointer}}
+
+/* task color as subtle icon tint (accent bar already uses --tcolor) */
+.task-row .icon-badge{
+  color:var(--tcolor, var(--ink2));
+  background:color-mix(in srgb, var(--tcolor, var(--ink2)) 14%, var(--card));
+}
+/* unscheduled: lighter than scheduled — flatter fill, no lift, muted bar */
+.task-row.unsched{
+  background:color-mix(in srgb, var(--card) 55%, var(--bg));
+  box-shadow:none;
+  border-left-color:color-mix(in srgb, var(--tcolor, var(--line)) 45%, var(--card));
+}
+/* important (dormant until t.important exists): accent bar */
+.task-row.important{border-left-color:var(--accent)}
+.imp-star{display:inline-flex; flex:none; color:var(--accent)}
+/* completed: quiet — recede, drain accent bar (must follow the rules above) */
+.task-row.st-done,.task-row.st-cancel{
+  background:transparent; box-shadow:none; border-left-color:var(--line);
+}
 .task-row .bullet{
   flex:none; width:34px; height:34px; border-radius:50%; font-size:1rem; font-weight:800;
   border:1.5px solid var(--line); color:var(--ink2);
@@ -130,7 +149,7 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .task-title{font-weight:600; display:flex; align-items:center; gap:7px; min-width:0}
 .task-title .t-text{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .st-done .task-title .t-text,.st-cancel .task-title .t-text{text-decoration:line-through; text-decoration-thickness:1.5px; color:var(--ink2); font-weight:400}
-.st-done .icon-badge,.st-cancel .icon-badge{opacity:.5}
+.st-done .icon-badge,.st-cancel .icon-badge{opacity:.55; color:var(--ink2); background:var(--bg)}
 .task-sub{font-size:.76rem; color:var(--ink2); display:flex; align-items:center; flex-wrap:wrap; white-space:pre}
 .task-sub .sub-item{display:inline-flex; align-items:center; gap:2px}
 .task-sub svg{opacity:.75; flex:none}
@@ -143,10 +162,19 @@ main{max-width:640px; margin:0 auto; padding:16px}
 }
 .icon-badge.selected{background:var(--accent-soft); color:var(--accent)}
 .icon-badge svg{display:block}
-.task-time{flex:none; font-size:.82rem; font-weight:700; color:var(--ink2); font-variant-numeric:tabular-nums}
+.task-time{flex:none; font-size:.8rem; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; background:var(--bg); padding:3px 9px; border-radius:8px}
+.st-done .task-time,.st-cancel .task-time{color:var(--ink2); background:transparent; font-weight:600}
 .mini-btn{flex:none; font-size:.76rem; font-weight:700; border:none; border-radius:999px; padding:6px 12px; background:var(--accent-soft); color:var(--accent-ink)}
 .mini-btn:active{transform:scale(.95)}
 .empty-note{text-align:center; color:var(--ink2); padding:48px 0; font-size:.9rem}
+.empty-state{text-align:center; padding:52px 20px}
+.empty-ico{display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:18px; background:var(--accent-soft); color:var(--accent); margin-bottom:14px}
+.empty-title{font-size:1.05rem; font-weight:800; color:var(--ink); margin-bottom:5px}
+.empty-body{font-size:.85rem; color:var(--ink2)}
+#inbox-sort{display:inline-flex; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:2px; margin:0 0 14px}
+#inbox-sort button{border-radius:999px; padding:5px 14px; font-size:.78rem; font-weight:700; color:var(--ink2); white-space:nowrap}
+#inbox-sort button.active{background:var(--accent); color:#fff}
+#inbox-sort button:not(.active):active{background:var(--accent-soft); color:var(--ink)}
 
 /* ---------- timeline ---------- */
 #tl-unsched{margin-bottom:10px}
@@ -169,8 +197,24 @@ main{max-width:640px; margin:0 auto; padding:16px}
   transform:scale(1.03); box-shadow:var(--shadow-lg);
 }
 .tl-hint{font-size:.72rem; color:var(--ink2); text-align:center; margin:4px 0 10px}
+.tl-elapsed{position:absolute; left:0; right:0; top:0; background:color-mix(in srgb, var(--ink) 4%, transparent); pointer-events:none}
+.tl-block.next{
+  border:1.5px solid var(--accent);
+  box-shadow:0 2px 10px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.tl-block.next::after{
+  content:'NEXT'; position:absolute; top:3px; right:6px;
+  font-size:.56rem; font-weight:800; letter-spacing:.06em;
+  color:var(--accent-ink); background:var(--accent-soft);
+  padding:1px 6px; border-radius:6px;
+}
 #now-line{position:absolute; left:44px; right:0; height:0; border-top:2px solid #e5484d; z-index:5}
 #now-line::before{content:''; position:absolute; left:-6px; top:-5px; width:8px; height:8px; border-radius:50%; background:#e5484d}
+#now-line span{
+  position:absolute; left:-44px; top:-9px;
+  font-size:.62rem; font-weight:800; font-variant-numeric:tabular-nums;
+  background:#e5484d; color:#fff; padding:1px 5px; border-radius:6px; line-height:1.5;
+}
 
 /* ---------- inbox / month ---------- */
 .section-title{margin:8px 4px 4px; font-size:1.3rem; font-weight:800; letter-spacing:-.02em; display:flex; align-items:center; gap:8px}
@@ -291,7 +335,13 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .f-row.two label{flex:1; display:flex; flex-direction:column; font-size:.72rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; gap:6px}
 .f-row.two input,.f-row.two select{width:100%}
 #color-picks{display:flex; gap:6px; flex-wrap:wrap}
-#emoji-picks{max-height:216px; overflow-y:auto; padding-right:2px}
+/* form fields as clearly visible, matching boxes */
+#f-title,#modal-card .f-row.two input,#modal-card .f-row.two select{border-color:var(--line)}
+#f-date,#f-time{min-height:38px}
+/* icon/color are secondary: divider + quieter, compact picker */
+.f-secondary{margin-top:4px; padding-top:14px; border-top:1px solid var(--line)}
+.f-secondary .f-row:last-child{margin-bottom:6px}
+#emoji-picks{max-height:150px; overflow-y:auto; padding-right:2px}
 .pick-grid{display:flex; gap:6px; flex-wrap:wrap}
 .pick-cat{font-size:.66rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; margin:10px 2px 6px}
 .pick-btn{

@@ -29,6 +29,7 @@ let cur = todayStr();       // 오늘 탭에서 보는 날짜
 let curMonth = cur.slice(0, 7); // 전체 탭에서 보는 달
 let tab = 'today';
 let editing = null;         // 모달에서 수정 중인 항목
+let inboxSort = 'recent';   // 인박스 정렬: recent | oldest
 let notified = new Set();
 
 /* ---------- 저장/불러오기 ---------- */
@@ -196,6 +197,17 @@ function renderToday() {
   else renderTimelineView(list, isToday);
 }
 
+/* 아직 끝나지 않은 가장 이른 시간 일정 (Next up 카드와 타임라인 강조가 공유) */
+function nextUpcomingTask(list) {
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  return list.filter(t => (t.status === 'todo' || t.status === 'doing') && t.time)
+    .find(t => {
+      const [h, m] = t.time.split(':').map(Number);
+      return h * 60 + m + (t.dur || 30) > nowMins;
+    }) || null;
+}
+
 /* ---------- Next up: 지금 해야 할 일 하이라이트 ---------- */
 function renderNextUp(list, isToday) {
   const el = $('#next-up');
@@ -209,13 +221,7 @@ function renderNextUp(list, isToday) {
   const active = list.filter(t => t.status === 'todo' || t.status === 'doing');
   const now = new Date();
   const nowMins = now.getHours() * 60 + now.getMinutes();
-  // 아직 끝나지 않은(종료 시각이 지금 이후인) 가장 이른 시간 일정
-  const timed = active.filter(t => {
-    if (!t.time) return false;
-    const [h, m] = t.time.split(':').map(Number);
-    return h * 60 + m + (t.dur || 30) > nowMins;
-  });
-  let pick = timed[0] || null; // list가 시간순 정렬되어 있음
+  let pick = nextUpcomingTask(list);
   let suffix = '';
   if (pick) {
     const [h, m] = pick.time.split(':').map(Number);
@@ -240,7 +246,7 @@ function renderNextUp(list, isToday) {
 
 function taskRow(t, opts = {}) {
   const row = document.createElement('div');
-  row.className = 'task-row st-' + t.status;
+  row.className = 'task-row st-' + t.status + (t.time ? ' sched' : ' unsched') + (t.important ? ' important' : '');
   row.style.setProperty('--tcolor', t.color || 'var(--line)');
 
   const bullet = document.createElement('button');
@@ -260,6 +266,12 @@ function taskRow(t, opts = {}) {
   txt.className = 't-text';
   txt.textContent = t.title;
   title.appendChild(txt);
+  if (t.important) {
+    const star = document.createElement('span');
+    star.className = 'imp-star';
+    star.innerHTML = iconSvg('important', 13);
+    title.appendChild(star);
+  }
   main.appendChild(title);
   const subs = [];
   if (t.dur) subs.push([null, t.dur >= 60 ? `${Math.floor(t.dur / 60)}h${t.dur % 60 ? ' ' + t.dur % 60 + 'm' : ''}` : `${t.dur}m`]);
@@ -347,12 +359,13 @@ function renderTimelineView(list, isToday) {
     };
     grid.appendChild(line);
   }
+  const nextTask = isToday ? nextUpcomingTask(list) : null;
   for (const t of list.filter(t => t.time)) {
     const [h, m] = t.time.split(':').map(Number);
     const top = (h * 60 + m) / 60 * HOUR_PX;
     const height = Math.max(((t.dur || 30) / 60) * HOUR_PX - 4, 26);
     const b = document.createElement('div');
-    b.className = 'tl-block st-' + t.status;
+    b.className = 'tl-block st-' + t.status + (t === nextTask ? ' next' : '');
     b.style.setProperty('--tcolor', t.color || 'var(--accent)');
     b.style.top = top + 'px';
     b.style.height = height + 'px';
@@ -380,9 +393,16 @@ function renderTimelineView(list, isToday) {
   }
   if (isToday) {
     const now = new Date();
+    const nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * HOUR_PX;
+    // 지나간 시간대는 옅게 — 하루의 현재 위치가 한눈에 보이도록
+    const elapsed = document.createElement('div');
+    elapsed.className = 'tl-elapsed';
+    elapsed.style.height = nowTop + 'px';
+    grid.insertBefore(elapsed, grid.children[24] || null);
     const line = document.createElement('div');
     line.id = 'now-line';
-    line.style.top = (now.getHours() * 60 + now.getMinutes()) / 60 * HOUR_PX + 'px';
+    line.style.top = nowTop + 'px';
+    line.innerHTML = `<span>${pad(now.getHours())}:${pad(now.getMinutes())}</span>`;
     grid.appendChild(line);
     requestAnimationFrame(() => {
       const y = line.offsetTop - window.innerHeight / 3;
@@ -462,10 +482,21 @@ function renderInbox() {
   const el = $('#inbox-list');
   el.innerHTML = '';
   const list = tasks.filter(t => !t.repeat && !t.date && !t.hidden);
+  const sortCtl = $('#inbox-sort');
   if (!list.length) {
-    el.innerHTML = '<div class="empty-note">Inbox is empty.<br>Toss in ideas here and sort them out later.</div>';
+    sortCtl.hidden = true;
+    el.innerHTML = '<div class="empty-state">'
+      + '<span class="empty-ico">' + iconSvg('ui-inbox', 26) + '</span>'
+      + '<div class="empty-title">Inbox is clear</div>'
+      + '<div class="empty-body">Tasks without a date will appear here.</div>'
+      + '</div>';
     return;
   }
+  sortCtl.hidden = false;
+  $$('#inbox-sort button').forEach(b => b.classList.toggle('active', b.dataset.sort === inboxSort));
+  list.sort((a, b) => inboxSort === 'recent'
+    ? (b.createdAt || 0) - (a.createdAt || 0)
+    : (a.createdAt || 0) - (b.createdAt || 0));
   list.forEach(t => el.appendChild(taskRow(t, { toToday: true })));
 }
 
@@ -848,6 +879,11 @@ function bind() {
     settings.view = b.dataset.view;
     save();
     render();
+  });
+  $$('#inbox-sort button').forEach(b => b.onclick = () => {
+    if (inboxSort === b.dataset.sort) return;
+    inboxSort = b.dataset.sort;
+    renderInbox();
   });
   $('#btn-snap').onclick = saveAsImage;
   $('#diary-input').addEventListener('change', e => {
