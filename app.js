@@ -330,6 +330,11 @@ function renderListView(list) {
   }
 }
 
+/* ---------- 타임라인 (Structured식 순차 레이아웃) ----------
+   task 수만큼 늘어나고, 겹치지 않으며, 빈 시간은 점선 커넥터로 압축 */
+const timeToMins = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+const minsToTime = mins => `${pad(Math.floor(Math.max(0, Math.min(mins, 1439)) / 60))}:${pad(Math.max(0, Math.min(mins, 1439)) % 60)}`;
+
 function renderTimelineView(list, isToday) {
   const un = $('#tl-unsched');
   un.innerHTML = '';
@@ -341,102 +346,120 @@ function renderTimelineView(list, isToday) {
   }
   const grid = $('#tl-grid');
   grid.innerHTML = '';
+  const timed = list.filter(t => t.time);
+  if (!timed.length) {
+    grid.innerHTML = '<div class="empty-note">No scheduled tasks.<br>Give a task a time to see it on the timeline.</div>';
+    return;
+  }
   const hint = document.createElement('div');
   hint.className = 'tl-hint';
-  hint.textContent = '↕ Drag a block to reschedule (touch: press & hold, then drag)';
-  un.appendChild(hint);
-  grid.style.height = 24 * HOUR_PX + 'px';
-  for (let h = 0; h < 24; h++) {
-    const line = document.createElement('div');
-    line.className = 'tl-hour';
-    line.style.top = h * HOUR_PX + 'px';
-    line.style.height = HOUR_PX + 'px';
-    line.innerHTML = `<span>${pad(h)}:00</span>`;
-    line.onclick = e => {
-      const rect = line.getBoundingClientRect();
-      const min = (e.clientY - rect.top) > HOUR_PX / 2 ? 30 : 0;
-      openModal(null, { date: cur, time: `${pad(h)}:${pad(min)}` });
-    };
-    grid.appendChild(line);
-  }
+  hint.textContent = '↕ Press & hold a card, then drag to change its time';
+  grid.appendChild(hint);
+
+  const now = new Date();
+  const nowMins = now.getHours() * 60 + now.getMinutes();
   const nextTask = isToday ? nextUpcomingTask(list) : null;
-  for (const t of list.filter(t => t.time)) {
-    const [h, m] = t.time.split(':').map(Number);
-    const top = (h * 60 + m) / 60 * HOUR_PX;
-    const height = Math.max(((t.dur || 30) / 60) * HOUR_PX - 4, 26);
-    const b = document.createElement('div');
-    b.className = 'tl-block st-' + t.status + (t === nextTask ? ' next' : '');
-    b.style.setProperty('--tcolor', t.color || 'var(--accent)');
-    b.style.top = top + 'px';
-    b.style.height = height + 'px';
-    b.innerHTML = `<div class="t"></div><div class="s"></div>`;
-    const tEl = b.querySelector('.t');
-    tEl.textContent = '';
-    tEl.appendChild(document.createTextNode(STATUS[t.status].sym + ' '));
-    const blockIcon = resolveIcon(t.emoji);
-    if (blockIcon) {
-      const ic = document.createElement('span');
-      ic.className = 'tl-ico';
-      ic.innerHTML = iconSvg(blockIcon, 12);
-      tEl.appendChild(ic);
+  let nowEl = null;
+  const addNowLine = () => {
+    const n = document.createElement('div');
+    n.className = 'tls-now';
+    n.innerHTML = `<span>${minsToTime(nowMins)}</span>`;
+    grid.appendChild(n);
+    nowEl = n;
+  };
+
+  let prevEnd = null;
+  let nowInserted = !isToday;
+  for (const t of timed) {
+    const start = timeToMins(t.time);
+    const end = start + (t.dur || 0);
+    // 빈 시간 커넥터 (길수록 살짝 길어지지만 최대 64px로 압축)
+    if (prevEnd !== null && start > prevEnd) {
+      const gap = start - prevEnd;
+      const g = document.createElement('div');
+      g.className = 'tls-gap';
+      g.style.height = Math.min(22 + gap / 60 * 8, 64) + 'px';
+      if (gap >= 45) g.innerHTML = `<span>${minsToTime(prevEnd)} – ${minsToTime(start)}</span>`;
+      const at = Math.ceil(prevEnd / 15) * 15;
+      g.title = 'Add a task here';
+      g.onclick = () => openModal(null, { date: cur, time: minsToTime(at) });
+      grid.appendChild(g);
     }
-    tEl.appendChild(document.createTextNode(' ' + t.title));
-    b.querySelector('.s').textContent = t.time + (t.dur ? ` · ${t.dur}m` : '');
-    b.onclick = e => {
-      e.stopPropagation();
-      if (b.dataset.dragged) return; // 드래그 직후 클릭 무시
-      openStatusPopover(b, t);
-    };
-    b.ondblclick = e => { e.stopPropagation(); openModal(t); };
-    attachDrag(b, t);
-    grid.appendChild(b);
+    if (!nowInserted && nowMins < start) { addNowLine(); nowInserted = true; }
+    grid.appendChild(seqCard(t, t === nextTask));
+    prevEnd = prevEnd === null ? end : Math.max(prevEnd, end);
   }
-  if (isToday) {
-    const now = new Date();
-    const nowTop = (now.getHours() * 60 + now.getMinutes()) / 60 * HOUR_PX;
-    // 지나간 시간대는 옅게 — 하루의 현재 위치가 한눈에 보이도록
-    const elapsed = document.createElement('div');
-    elapsed.className = 'tl-elapsed';
-    elapsed.style.height = nowTop + 'px';
-    grid.insertBefore(elapsed, grid.children[24] || null);
-    const line = document.createElement('div');
-    line.id = 'now-line';
-    line.style.top = nowTop + 'px';
-    line.innerHTML = `<span>${pad(now.getHours())}:${pad(now.getMinutes())}</span>`;
-    grid.appendChild(line);
+  if (!nowInserted) addNowLine();
+  if (isToday && nowEl) {
     requestAnimationFrame(() => {
-      const y = line.offsetTop - window.innerHeight / 3;
-      window.scrollTo({ top: grid.getBoundingClientRect().top + window.scrollY + Math.max(y, 0) - 120 });
+      const y = nowEl.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2;
+      if (y > 0) window.scrollTo({ top: y });
     });
   }
 }
 
+/* 순차 타임라인 카드: 시간 라벨 + 컬러 아이콘 도트(세로 레일 위) + 카드 */
+function seqCard(t, isNext) {
+  const item = document.createElement('div');
+  item.className = 'tls-item st-' + t.status + (isNext ? ' next' : '');
+  item.style.setProperty('--tcolor', t.color || 'var(--accent)');
+  const end = t.dur ? minsToTime(timeToMins(t.time) + t.dur) : null;
+  item.innerHTML = `
+    <div class="tls-time">${t.time}</div>
+    <div class="tls-rail"><span class="tls-dot"></span></div>
+    <div class="tls-card">
+      <div class="tls-body">
+        <div class="tls-title"></div>
+        <div class="tls-sub"></div>
+      </div>
+    </div>`;
+  const iconId = resolveIcon(t.emoji);
+  if (iconId) item.querySelector('.tls-dot').innerHTML = iconSvg(iconId, 15);
+  item.querySelector('.tls-title').textContent = t.title;
+  item.querySelector('.tls-sub').textContent = end ? `${t.time} – ${end} · ${t.dur}m` : t.time;
+  if (t.note) item.querySelector('.tls-sub').textContent += '  ·  ' + t.note;
+  const bullet = document.createElement('button');
+  bullet.className = 'bullet';
+  bullet.textContent = STATUS[t.status].sym;
+  bullet.title = STATUS[t.status].label;
+  bullet.onclick = e => { e.stopPropagation(); openStatusPopover(bullet, t); };
+  item.querySelector('.tls-card').appendChild(bullet);
+  item.querySelector('.tls-card').onclick = e => {
+    e.stopPropagation();
+    if (item.dataset.dragged) return; // 드래그 직후 클릭 무시
+    openModal(t);
+  };
+  attachSeqDrag(item, t);
+  return item;
+}
+
 /* ---------- 타임라인 드래그 (시간 변경) ----------
    마우스: 4px 이상 움직이면 드래그 시작
-   터치: 300ms 길게 누르면 드래그, 그 전에 움직이면 스크롤 */
-function attachDrag(b, t) {
-  let sy = 0, sTop = 0, mode = null, timer = null;
-  const minsFromTop = top => Math.round(top / HOUR_PX * 60);
+   터치: 250ms 길게 누르면 드래그, 그 전에 움직이면 스크롤
+   14px 이동 = 15분 (드래그 중 카드의 시간 라벨이 실시간 갱신) */
+function attachSeqDrag(item, t) {
+  let sy = 0, mode = null, timer = null, newMins = null;
+  const origMins = timeToMins(t.time);
+  const STEP_PX = 14, STEP_MIN = 15;
   const arm = () => {
     mode = 'drag';
-    b.classList.add('dragging');
+    newMins = origMins;
+    item.classList.add('dragging');
     try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
   };
-  // 길게 누르기를 브라우저가 가로채지 않도록 (Android 컨텍스트 메뉴 등)
-  b.addEventListener('contextmenu', e => e.preventDefault());
-  b.addEventListener('pointerdown', e => {
+  item.addEventListener('contextmenu', e => e.preventDefault());
+  item.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
-    sy = e.clientY; sTop = b.offsetTop; mode = 'wait';
+    sy = e.clientY; mode = 'wait';
     if (e.pointerType === 'mouse') mode = 'mouse-wait';
     else timer = setTimeout(arm, 250);
-    try { b.setPointerCapture(e.pointerId); } catch (err) {}
+    try { item.setPointerCapture(e.pointerId); } catch (err) {}
   });
-  b.addEventListener('pointermove', e => {
+  item.addEventListener('pointermove', e => {
     if (!mode) return;
     const dy = e.clientY - sy;
     if (mode === 'mouse-wait' && Math.abs(dy) > 4) arm();
     else if (mode === 'wait' && Math.abs(dy) > 12) {
-      // 길게 누르기 전에 움직임 → 스크롤로 처리
       clearTimeout(timer);
       mode = 'scroll';
     }
@@ -446,21 +469,21 @@ function attachDrag(b, t) {
       return;
     }
     if (mode !== 'drag') return;
-    const step = HOUR_PX / 4; // 15분 단위 스냅
-    let top = Math.round((sTop + dy) / step) * step;
-    top = Math.max(0, Math.min(top, 24 * HOUR_PX - b.offsetHeight));
-    b.style.top = top + 'px';
-    const mins = minsFromTop(top);
-    b.querySelector('.s').textContent = `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}` + (t.dur ? ` · ${t.dur}m` : '');
+    const steps = Math.round(dy / STEP_PX);
+    newMins = Math.max(0, Math.min(origMins + steps * STEP_MIN, 1425));
+    item.style.transform = `translateY(${steps * STEP_PX}px)`;
+    item.querySelector('.tls-time').textContent = minsToTime(newMins);
+    const end = t.dur ? minsToTime(newMins + t.dur) : null;
+    item.querySelector('.tls-sub').textContent = end ? `${minsToTime(newMins)} – ${end} · ${t.dur}m` : minsToTime(newMins);
   });
   const finish = () => {
     clearTimeout(timer);
     if (mode === 'drag') {
-      b.classList.remove('dragging');
-      b.dataset.dragged = '1';
-      setTimeout(() => { delete b.dataset.dragged; }, 0);
-      const mins = minsFromTop(b.offsetTop);
-      const time = `${pad(Math.floor(mins / 60))}:${pad(mins % 60)}`;
+      item.classList.remove('dragging');
+      item.style.transform = '';
+      item.dataset.dragged = '1';
+      setTimeout(() => { delete item.dataset.dragged; }, 0);
+      const time = minsToTime(newMins);
       if (time !== t.time) {
         const real = t.virtual ? materialize(t) : t;
         real.time = time;
@@ -470,10 +493,11 @@ function attachDrag(b, t) {
     }
     mode = null;
   };
-  b.addEventListener('pointerup', finish);
-  b.addEventListener('pointercancel', () => {
+  item.addEventListener('pointerup', finish);
+  item.addEventListener('pointercancel', () => {
     clearTimeout(timer);
-    b.classList.remove('dragging');
+    item.classList.remove('dragging');
+    item.style.transform = '';
     mode = null;
   });
 }
@@ -885,6 +909,24 @@ function bind() {
     inboxSort = b.dataset.sort;
     renderInbox();
   });
+  // Today 화면 좌우 스와이프로 날짜 이동 (왼→오 = 전날, 오→왼 = 다음날)
+  let swX = null, swY = null;
+  const todaySec = $('#tab-today');
+  todaySec.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    swX = e.touches[0].clientX;
+    swY = e.touches[0].clientY;
+  }, { passive: true });
+  todaySec.addEventListener('touchend', e => {
+    if (swX === null) return;
+    const dx = e.changedTouches[0].clientX - swX;
+    const dy = e.changedTouches[0].clientY - swY;
+    swX = swY = null;
+    if (!$('#modal').hidden || !$('#move-modal').hidden) return;
+    if (Math.abs(dx) > 60 && Math.abs(dy) < 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      shiftDay(dx > 0 ? -1 : 1);
+    }
+  }, { passive: true });
   $('#btn-snap').onclick = saveAsImage;
   $('#diary-input').addEventListener('change', e => {
     days[cur] = days[cur] || {};

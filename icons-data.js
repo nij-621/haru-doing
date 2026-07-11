@@ -67,5 +67,7 @@ window.ICON_SVGS = {
 "ui-plus":"\u003cpath d=\"M5 12h14\" /\u003e \u003cpath d=\"M12 5v14\" /\u003e",
 "ui-repeat":"\u003cpath d=\"m17 2 4 4-4 4\" /\u003e \u003cpath d=\"M3 11v-1a4 4 0 0 1 4-4h14\" /\u003e \u003cpath d=\"m7 22-4-4 4-4\" /\u003e \u003cpath d=\"M21 13v1a4 4 0 0 1-4 4H3\" /\u003e",
 "ui-notetext":"\u003cpath d=\"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z\" /\u003e \u003cpath d=\"M14 2v5a1 1 0 0 0 1 1h5\" /\u003e \u003cpath d=\"M10 9H8\" /\u003e \u003cpath d=\"M16 13H8\" /\u003e \u003cpath d=\"M16 17H8\" /\u003e",
-"ui-carried":"\u003cpath d=\"m15 10 5 5-5 5\" /\u003e \u003cpath d=\"M4 4v7a4 4 0 0 0 4 4h12\" /\u003e"
+"ui-carried":"\u003cpath d=\"m15 10 5 5-5 5\" /\u003e \u003cpath d=\"M4 4v7a4 4 0 0 0 4 4h12\" /\u003e",
+"cooking":"\u003cpath d=\"M2 12h20\" /\u003e \u003cpath d=\"M20 12v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8\" /\u003e \u003cpath d=\"m4 8 16-4\" /\u003e \u003cpath d=\"m8.86 6.78-.45-1.81a2 2 0 0 1 1.45-2.43l1.94-.48a2 2 0 0 1 2.43 1.46l.45 1.8\" /\u003e",
+"vacuum":"\u003cpath d=\"m16 22-1-4\" /\u003e \u003cpath d=\"M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1\" /\u003e \u003cpath d=\"M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z\" /\u003e \u003cpath d=\"m8 22 1-4\" /\u003e"
 };
