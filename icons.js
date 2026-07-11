@@ -34,6 +34,7 @@ const TASK_ICONS = [
   { id: 'coffee', label: 'Coffee', category: 'food' },
   { id: 'water', label: 'Water', category: 'food' },
   { id: 'cooking', label: 'Cooking', category: 'food' },
+  { id: 'chef', label: 'Chef hat', category: 'food' },
   { id: 'clean', label: 'Clean', category: 'home' },
   { id: 'vacuum', label: 'Vacuum', category: 'home' },
   { id: 'laundry', label: 'Laundry', category: 'home' },

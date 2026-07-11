@@ -10,7 +10,8 @@ const todayStr = () => fmt(new Date());
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MOODS = ['😄', '🙂', '😐', '😔', '😢', '😠', '🤒', '🥳'];
+const MOODS = ['😄', '🙂', '😐', '😔', '😢', '😠', '🥱', '🤒', '🥳'];
+const MOOD_LABELS = ['Happy', 'Good', 'Okay', 'Down', 'Sad', 'Angry', 'Tired', 'Sick', 'Party'];
 const COLORS = ['#ff7b54', '#4a90d9', '#4caf7d', '#e8a33d', '#b085d6', '#e05c7a', '#7a8a99'];
 const STATUS = {
   todo:   { sym: '○', label: 'To-do' },
@@ -30,6 +31,7 @@ let curMonth = cur.slice(0, 7); // 전체 탭에서 보는 달
 let tab = 'today';
 let editing = null;         // 모달에서 수정 중인 항목
 let inboxSort = 'recent';   // 인박스 정렬: recent | oldest
+let tlScrollKey = '';       // 타임라인 자동 스크롤이 이미 실행된 날짜 키
 let notified = new Set();
 
 /* ---------- 저장/불러오기 ---------- */
@@ -160,16 +162,22 @@ function render() {
 function renderToday() {
   const d = parseDate(cur);
   const isToday = cur === todayStr();
-  $('#btn-date').textContent = `${MONTHS[d.getMonth()]} ${d.getDate()} (${WEEKDAYS[d.getDay()]})${isToday ? ' · Today' : ''}`;
+  // 날짜: 큰 날짜 + 작은 요일/Today 2줄 위계
+  const dl = $('#btn-date');
+  dl.classList.toggle('today', isToday);
+  dl.innerHTML = `<span class="dl-date">${MONTHS[d.getMonth()]} ${d.getDate()}</span>`
+    + `<span class="dl-sub">${WEEKDAYS[d.getDay()]}${isToday ? ' · Today' : ''}</span>`;
   $$('#view-seg button').forEach(b => b.classList.toggle('active', b.dataset.view === settings.view));
 
   // 기분 + 일기
   const day = days[cur] || {};
   const moodRow = $('#mood-row');
   moodRow.innerHTML = '';
-  for (const m of MOODS) {
+  MOODS.forEach((m, mi) => {
     const b = document.createElement('button');
     b.textContent = m;
+    b.title = MOOD_LABELS[mi];
+    b.setAttribute('aria-label', MOOD_LABELS[mi]);
     b.classList.toggle('sel', day.mood === m);
     b.onclick = () => {
       days[cur] = days[cur] || {};
@@ -177,7 +185,7 @@ function renderToday() {
       save(); renderToday();
     };
     moodRow.appendChild(b);
-  }
+  });
   const diary = $('#diary-input');
   if (diary.value !== (day.diary || '')) diary.value = day.diary || '';
 
@@ -186,7 +194,7 @@ function renderToday() {
   const note = $('#carry-note');
   if (isToday && carried.length) {
     note.hidden = false;
-    note.textContent = `↪ ${carried.length} unfinished ${carried.length === 1 ? 'task' : 'tasks'} carried over to today.`;
+    note.innerHTML = iconSvg('ui-carried', 13) + ` ${carried.length} unfinished ${carried.length === 1 ? 'task' : 'tasks'} carried over to today.`;
   } else note.hidden = true;
 
   const list = tasksForDay(cur);
@@ -390,10 +398,14 @@ function renderTimelineView(list, isToday) {
     prevEnd = prevEnd === null ? end : Math.max(prevEnd, end);
   }
   if (!nowInserted) addNowLine();
-  if (isToday && nowEl) {
+  // 현재 시각으로 자동 스크롤은 "날짜/뷰가 바뀐 첫 렌더"에만 —
+  // 상태 변경·드래그 후 재렌더에서 화면이 튀지 않도록
+  const scrollKey = cur + '|timeline';
+  if (isToday && nowEl && tlScrollKey !== scrollKey) {
+    tlScrollKey = scrollKey;
     requestAnimationFrame(() => {
       const y = nowEl.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2;
-      if (y > 0) window.scrollTo({ top: y });
+      if (y > 0) window.scrollTo({ top: y, behavior: 'smooth' });
     });
   }
 }
@@ -435,7 +447,9 @@ function seqCard(t, isNext) {
 
 /* ---------- 타임라인 드래그 (시간 변경) ----------
    마우스: 4px 이상 움직이면 드래그 시작
-   터치: 250ms 길게 누르면 드래그, 그 전에 움직이면 스크롤
+   터치: 250ms 길게 누르면 드래그. 그 전에 움직이면 드래그를 취소하고
+   네이티브 스크롤(touch-action: pan-y)에 맡긴다 — 관성/바운스가 자연스럽고
+   preventDefault는 드래그 중일 때만 제한적으로 사용.
    14px 이동 = 15분 (드래그 중 카드의 시간 라벨이 실시간 갱신) */
 function attachSeqDrag(item, t) {
   let sy = 0, mode = null, timer = null, newMins = null;
@@ -448,6 +462,10 @@ function attachSeqDrag(item, t) {
     try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
   };
   item.addEventListener('contextmenu', e => e.preventDefault());
+  // 드래그 중일 때만 네이티브 스크롤 차단 (그 외에는 브라우저 기본 스크롤 그대로)
+  item.addEventListener('touchmove', e => {
+    if (mode === 'drag' && e.cancelable) e.preventDefault();
+  }, { passive: false });
   item.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     sy = e.clientY; mode = 'wait';
@@ -460,12 +478,9 @@ function attachSeqDrag(item, t) {
     const dy = e.clientY - sy;
     if (mode === 'mouse-wait' && Math.abs(dy) > 4) arm();
     else if (mode === 'wait' && Math.abs(dy) > 12) {
+      // 길게 누르기 전에 움직임 → 드래그 취소, 네이티브 스크롤이 처리
       clearTimeout(timer);
-      mode = 'scroll';
-    }
-    if (mode === 'scroll') {
-      window.scrollBy(0, sy - e.clientY);
-      sy = e.clientY;
+      mode = null;
       return;
     }
     if (mode !== 'drag') return;
@@ -901,6 +916,7 @@ function bind() {
   $$('#view-seg button').forEach(b => b.onclick = () => {
     if (settings.view === b.dataset.view) return;
     settings.view = b.dataset.view;
+    tlScrollKey = ''; // 뷰를 다시 켜면 현재 시각으로 한 번 스크롤
     save();
     render();
   });

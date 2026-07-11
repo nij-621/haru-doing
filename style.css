@@ -51,8 +51,14 @@ input:focus,select:focus,textarea:focus{
   padding:10px 5px; border-bottom:1px solid var(--line);
 }
 .date-nav{display:flex; align-items:center; gap:0}
-.date-label{font-size:.84rem; font-weight:800; padding:8px 2px; border-radius:10px; white-space:nowrap}
+.date-label{
+  display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+  padding:4px 6px; border-radius:10px; white-space:nowrap; line-height:1.12; text-align:left;
+}
 .date-label:active{background:var(--accent-soft)}
+.dl-date{font-size:1.14rem; font-weight:800; letter-spacing:-.02em; color:var(--ink)}
+.dl-sub{font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--ink2)}
+.date-label.today .dl-sub{color:var(--accent)}
 .icon-btn{font-size:1.15rem; padding:8px 4px; border-radius:10px; line-height:1; color:var(--ink2)}
 .icon-btn:active{background:var(--accent-soft); color:var(--ink)}
 .top-actions{display:flex; align-items:center; gap:4px}
@@ -103,6 +109,7 @@ main{max-width:640px; margin:0 auto; padding:16px}
 #diary-input::placeholder{color:var(--ink2)}
 
 .carry-note{font-size:.8rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); border-radius:12px; padding:9px 14px; margin-bottom:12px}
+.carry-note svg{vertical-align:-2px; margin-right:2px}
 
 /* ---------- task list ---------- */
 .task-group-label{
@@ -183,7 +190,7 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .tl-hint{font-size:.72rem; color:var(--ink2); text-align:center; margin:4px 0 10px}
 .tls-item{
   display:flex; align-items:stretch; position:relative;
-  touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+  touch-action:pan-y; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
 }
 .tls-time{flex:none; width:46px; padding-top:16px; font-size:.74rem; font-weight:800; color:var(--ink2); font-variant-numeric:tabular-nums}
 .tls-rail{flex:none; width:34px; display:flex; justify-content:center; position:relative}
