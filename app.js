@@ -322,7 +322,7 @@ function renderListView(list) {
   const el = $('#list-view');
   el.innerHTML = '';
   if (!list.length) {
-    el.innerHTML = '<div class="empty-note">No tasks yet.<br>Tap ＋ to write your first one ✎</div>';
+    el.innerHTML = '<div class="empty-note">No tasks yet.<br>Tap ＋ to write your first one</div>';
     return;
   }
   const timed = list.filter(t => t.time), untimed = list.filter(t => !t.time);
@@ -361,7 +361,7 @@ function renderTimelineView(list, isToday) {
   }
   const hint = document.createElement('div');
   hint.className = 'tl-hint';
-  hint.textContent = '↕ Press & hold a card, then drag to change its time';
+  hint.textContent = 'Press & hold a card, then drag to change its time';
   grid.appendChild(hint);
 
   const now = new Date();
@@ -624,8 +624,8 @@ function renderMonth() {
     row.className = 'day-row' + (ds === today ? ' today' : '');
     row.innerHTML = `<div class="d">${d}<small>${WEEKDAYS[parseDate(ds).getDay()]}</small></div>
       <div class="m"></div><div class="info"></div><div class="cnt"></div>`;
-    row.querySelector('.m').textContent = info.mood || '·';
-    row.querySelector('.info').textContent = info.diary || (list[0] ? (list[0].emoji || '') + ' ' + list[0].title + (list.length > 1 ? ` +${list.length - 1} more` : '') : '');
+    row.querySelector('.m').textContent = info.mood || '';
+    row.querySelector('.info').textContent = info.diary || (list[0] ? list[0].title + (list.length > 1 ? ` +${list.length - 1} more` : '') : '');
     const cnt = row.querySelector('.cnt');
     if (total) {
       cnt.textContent = `${done}/${total}`;

@@ -274,7 +274,25 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .set-row select{min-width:150px; background:var(--bg)}
 .set-row input[type=range]{width:150px; accent-color:var(--accent); padding:0; background:none; border:none}
 .set-row input[type=range]:focus{box-shadow:none}
-.set-row input[type=checkbox]{width:22px; height:22px; accent-color:var(--accent); padding:0}
+/* iOS-style switch (same checkbox element, visual only) */
+.set-row input[type=checkbox]{
+  appearance:none; -webkit-appearance:none; flex:none;
+  width:46px; height:28px; border-radius:999px; padding:0; border:none;
+  background:var(--line); position:relative; cursor:pointer;
+  transition:background-color .2s ease;
+}
+.set-row input[type=checkbox]::after{
+  content:''; position:absolute; top:3px; left:3px; width:22px; height:22px;
+  border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25);
+  transition:transform .2s ease;
+}
+.set-row input[type=checkbox]:checked{background:var(--accent)}
+.set-row input[type=checkbox]:checked::after{transform:translateX(18px)}
+.set-row input[type=checkbox]:active::after{transform:scale(.92)}
+.set-row input[type=checkbox]:checked:active::after{transform:translateX(18px) scale(.92)}
+.set-row input[type=checkbox]:focus{background:var(--line); border:none; box-shadow:none}
+.set-row input[type=checkbox]:checked:focus{background:var(--accent)}
+.set-row input[type=checkbox]:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .wide-btn{
   display:flex; align-items:center; justify-content:center; gap:8px;
   width:100%; padding:12px; font-weight:700; font-size:.92rem;

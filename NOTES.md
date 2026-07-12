@@ -117,3 +117,4 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 15. Inbox 폴리시 (빈 상태 "Inbox is clear", Recent/Oldest 정렬)
 16. 타임라인을 Structured식 순차 레이아웃으로 전면 교체 (겹침 없음, 빈 시간 압축, 시작–끝 시간 표기) + 스와이프 날짜 이동 + cooking/vacuum 아이콘 + FAB 중앙정렬 + 모바일 버튼 확대 (sw 캐시 v3)
 17. chef-hat 아이콘, 날짜 2줄 위계(큰 날짜 + 작은 요일·Today 강조), 🥱 Tired 기분 추가, 타임라인 스크롤을 네이티브로 복원(touch-action pan-y, preventDefault는 드래그 중에만) + 자동 스크롤은 날짜/뷰 변경 첫 렌더에만 (sw 캐시 v4)
+18. Emil 디자인 리뷰 1순위 수정: All 탭 아이콘 id 텍스트 노출 버그, 기분 없는 날 '·' 제거, iOS에서 이모지로 렌더되는 글리프(↕ ✎) 제거, 알림 토글을 iOS식 스위치로 (sw 캐시 v5). 프로젝트 폴더가 "Claude 작업실\haru-doing"으로 이동됨 — launch.json 경로도 갱신
