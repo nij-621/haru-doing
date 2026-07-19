@@ -21,9 +21,9 @@ const MOODS = [
   { id: 'mood-angry', emoji: '😠', label: 'Angry' },
   { id: 'mood-tired', emoji: '🥱', label: 'Tired' },
   { id: 'mood-sick',  emoji: '🤒', label: 'Sick' },
-  { id: 'mood-party', emoji: '🥳', label: 'Party' },
+  { id: 'mood-excited', emoji: '🥳', label: 'Excited', aliases: ['mood-party'] },
 ];
-const moodOf = v => v ? (MOODS.find(m => m.id === v || m.emoji === v) || null) : null;
+const moodOf = v => v ? (MOODS.find(m => m.id === v || m.emoji === v || (m.aliases || []).includes(v)) || null) : null;
 const COLORS = ['#ff7b54', '#4a90d9', '#4caf7d', '#e8a33d', '#b085d6', '#e05c7a', '#7a8a99'];
 const STATUS = {
   todo:   { sym: '○', label: 'To-do' },
