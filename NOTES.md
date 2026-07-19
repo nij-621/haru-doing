@@ -18,6 +18,7 @@
 | `style.css` | 모든 스타일 (디자인 토큰, 상태별 카드, 다크모드) |
 | `icons.js` | `TASK_ICONS` 레지스트리 + `EMOJI_TO_ICON` fallback + `IconBadge`/`resolveIcon`/`iconSvg` 헬퍼 |
 | `icons-data.js` | Lucide 라인 아이콘 SVG 69개 (PowerShell로 unpkg에서 생성한 데이터. 손으로 편집 X) |
+| `work.js` | 출퇴근 기록 + 월별 근무 리포트 (app.js와 분리된 근무 로직 전체) |
 | `sw.js` | 서비스 워커: 오프라인 캐시 + Windows 11 Edge 위젯 |
 | `manifest.webmanifest` | PWA 설정 (이름 HaruDoing, 홈화면 아이콘, 바로가기, 위젯) |
 | `scriptable-widget.js` | iOS Scriptable 위젯 스크립트 (아이폰은 네이티브 위젯 불가라 우회) |
@@ -31,6 +32,8 @@
 - `hd.tasks` — 할 일 배열
 - `hd.days` — `{ 'YYYY-MM-DD': { mood, diary } }`
 - `hd.settings` — `{ font, size, theme, notify, view }`
+- `hd.work` — 출퇴근 기록 (work.js 전용): `{ 'YYYY-MM-DD': { seg:[{s:'08:00', e:'17:00'|null}], home, type:'work|vacation|holiday|sick', note, entry:{s,e}(회사입력 수동 오버라이드), entered(입력완료 체크) } }`
+- `hd.workSettings` — `{ base:[요일별 기준 분, getDay 인덱스], lunch:30, cap:120, opening(초기 잔고 분), openingMonth, autoFill }`
 
 ### task 객체 필드
 ```
@@ -99,7 +102,23 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 2. `icons-data.js`에 해당 Lucide SVG 데이터 추가 — Lucide 아이콘 이름을 골라 `https://unpkg.com/lucide-static@latest/icons/<name>.svg`에서 내부 path만 넣기 (기존 생성 스크립트 방식 참고)
 3. 필요하면 `EMOJI_TO_ICON`에 옛 이모지 매핑 추가
 
-## 11. 지금까지의 작업 이력 (이 세션에서 만든 것)
+## 11. 백로그 (검토 완료, 미진행 — Emil 디자인 리뷰 2·3순위)
+`.claude/skills/emil-design-eng` 스킬 기준으로 리뷰한 결과. 1순위(버그 4건)는 이력 18번에서 완료.
+
+**2순위 — 등장 애니메이션 (현재 모달·팝오버가 hidden 토글로 즉시 등장):**
+- New task 바텀시트: translateY(100%)→0, 300~350ms, drawer 커브 `cubic-bezier(0.32,0.72,0,1)` + dim 페이드
+- 상태 팝오버: scale(0.95)+opacity, 150ms ease-out, transform-origin을 불렛 위치로
+- Move 다이얼로그: scale(0.96)+opacity, 200ms ease-out, origin 중앙 유지 (모달은 예외)
+- 커스텀 이징 토큰 추가: `--ease-out: cubic-bezier(0.23,1,0.32,1)` / 전부 300ms 이하
+- `prefers-reduced-motion` 대응 (움직임 제거, opacity만)
+- 주의: 탭 전환·날짜 스와이프는 하루 수십 번 쓰므로 애니메이션 넣지 말 것 (Emil 빈도 프레임워크)
+
+**3순위 — 선택:**
+- 드래그 놓을 때 카드가 새 위치로 200ms ease-out 스냅 (지금은 순간이동)
+- 타임라인 카드 불렛(오른쪽)이 화면 하단에서 FAB에 가려짐 — 여백 or 불렛 위치 재검토 (리스트 뷰는 왼쪽 불렛이라 일관성 이슈)
+- 완료 시 불렛 체크 마이크로 피드백 (아주 절제해서)
+
+## 12. 지금까지의 작업 이력 (이 세션에서 만든 것)
 1. 앱 기본 구축: Today(리스트/타임라인)·Inbox·All·Settings, 기분/한줄일기, 이미지 저장, 백업(내보내기/가져오기)
 2. All 탭에 할 일 검색 (과거에 언제 했는지 찾기)
 3. GitHub Pages 배포 + 폰 홈화면 설치
@@ -118,3 +137,9 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 16. 타임라인을 Structured식 순차 레이아웃으로 전면 교체 (겹침 없음, 빈 시간 압축, 시작–끝 시간 표기) + 스와이프 날짜 이동 + cooking/vacuum 아이콘 + FAB 중앙정렬 + 모바일 버튼 확대 (sw 캐시 v3)
 17. chef-hat 아이콘, 날짜 2줄 위계(큰 날짜 + 작은 요일·Today 강조), 🥱 Tired 기분 추가, 타임라인 스크롤을 네이티브로 복원(touch-action pan-y, preventDefault는 드래그 중에만) + 자동 스크롤은 날짜/뷰 변경 첫 렌더에만 (sw 캐시 v4)
 18. Emil 디자인 리뷰 1순위 수정: All 탭 아이콘 id 텍스트 노출 버그, 기분 없는 날 '·' 제거, iOS에서 이모지로 렌더되는 글리프(↕ ✎) 제거, 알림 토글을 iOS식 스위치로 (sw 캐시 v5). 프로젝트 폴더가 "Claude 작업실\haru-doing"으로 이동됨 — launch.json 경로도 갱신
+19. **출퇴근 기록 + 월별 근무 리포트** (`work.js` 신규, sw 캐시 v6). 회사 근태 입력 프로세스 자동화용:
+    - Today 탭 펀치 카드: Start/End work 버튼(하루 여러 구간 가능), Home office 스위치, 실시간 순근무·당일±·당월± 표시, 어제 퇴근 누락 경고
+    - 하루 편집 모달(`#work-modal`): 구간 추가/수정/삭제, Day type(Work/Vacation/Holiday/Sick), 회사입력 수동 오버라이드, 메모(출장지)
+    - Work report 오버레이(`#work-report`): 월별 Days/Entry 뷰, 요약 4종(Worked/target, Actual·Entered overtime, Left overtime), 기록 없는 평일 경고, CSV 내보내기
+    - **계산 규칙**: 순근무 = 구간 합 − 점심 30분(구간 사이 30분+ 공백이 있으면 공제 안 함 — 공백이 곧 점심. **6시간 이하 근무일도 공제 없음** — AZG 휴게 의무가 6시간 초과부터라 회사 시스템도 동일, 사용자 확인. Entry 블록도 6시간 초과일 때만 +점심을 더해 구성). 기준 월–목 8h·금 6.5h. Entry 추천 = 하루 한 블록, 종료 = 시작 + 순근무 + 점심(회사 시스템이 공제), 15분 반올림, 초과근무 상한 +2h, 상한 초과분·반올림 차이는 Left overtime 잔고로 순차 적립. autoFill 켜면 부족한 날을 잔고에서 채움(퇴근 전인 오늘은 제외). 초기 잔고/기산월은 Settings의 Work tracking에서 입력
+    - app.js 훅 4곳만 수정: renderToday 끝에서 renderWorkCard 호출, 백업 내보내기/가져오기에 work 데이터 포함, 전체 삭제에 hd.work 키 포함. 나머지 로직은 전부 work.js에 격리

@@ -203,6 +203,7 @@ function renderToday() {
   $('#timeline-view').hidden = settings.view !== 'timeline';
   if (settings.view === 'list') renderListView(list);
   else renderTimelineView(list, isToday);
+  if (window.renderWorkCard) renderWorkCard(); // work.js: 출퇴근 펀치 카드
 }
 
 /* 아직 끝나지 않은 가장 이른 시간 일정 (Next up 카드와 타임라인 강조가 공유) */
@@ -839,7 +840,9 @@ function saveAsImage() {
 
 /* ---------- 백업 ---------- */
 function exportData() {
-  const blob = new Blob([JSON.stringify({ tasks, days, settings, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+  const payload = { tasks, days, settings, exportedAt: new Date().toISOString() };
+  if (window.HDWORK) Object.assign(payload, HDWORK.exportPayload()); // work.js 근무 기록 포함
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.download = `HaruDoing_backup_${todayStr()}.json`;
   a.href = URL.createObjectURL(blob);
@@ -854,6 +857,7 @@ function importData(file) {
       if (!Array.isArray(data.tasks)) throw new Error('bad format');
       if (!confirm(`Overwrite current data with this backup (${data.tasks.length} tasks)?`)) return;
       tasks = data.tasks; days = data.days || {}; settings = Object.assign(settings, data.settings || {});
+      if (window.HDWORK) HDWORK.importPayload(data); // work.js 근무 기록 복원
       save(); applySettings(); render();
       alert('Import complete!');
     } catch (e) { alert('Import failed: not a valid backup file.'); }
@@ -990,6 +994,8 @@ function bind() {
     if (!confirm('Really delete ALL data? This cannot be undone.')) return;
     localStorage.removeItem('hd.tasks');
     localStorage.removeItem('hd.days');
+    localStorage.removeItem('hd.work');
+    localStorage.removeItem('hd.workSettings');
     location.reload();
   };
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySettings);

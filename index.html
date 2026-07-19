@@ -35,6 +35,7 @@
   <!-- Today tab -->
   <section id="tab-today">
     <div id="next-up" hidden></div>
+    <div id="work-card" class="card" hidden></div>
     <div id="mood-card" class="card">
       <div id="mood-row"></div>
       <input id="diary-input" type="text" maxlength="120" placeholder="One-line diary for today">
@@ -98,6 +99,15 @@
       <label class="set-row">Task time notifications
         <input id="set-notify" type="checkbox">
       </label>
+    </div>
+    <div class="card set-card" id="work-settings">
+      <div class="set-head">Work tracking</div>
+      <label class="set-row">Base hours Mon–Thu <input id="ws-base" type="text" class="dur-input" placeholder="8:00"></label>
+      <label class="set-row">Base hours Friday <input id="ws-fri" type="text" class="dur-input" placeholder="6:30"></label>
+      <label class="set-row">Lunch deduction (min) <input id="ws-lunch" type="number" class="dur-input" min="0" max="120" step="5"></label>
+      <label class="set-row">Daily overtime cap <input id="ws-cap" type="text" class="dur-input" placeholder="2:00"></label>
+      <label class="set-row">Opening balance <input id="ws-open" type="text" class="dur-input" placeholder="+3:15"></label>
+      <label class="set-row">Balance counted from <input id="ws-openm" type="month"></label>
     </div>
     <div class="card set-card">
       <button id="btn-export" class="wide-btn"><span data-ui-icon="ui-export" data-size="17"></span>Export data (backup)</button>
@@ -186,9 +196,70 @@
   </div>
 </div>
 
+<!-- Work report (full-screen overlay) -->
+<section id="work-report" hidden>
+  <header id="wr-top">
+    <button id="wr-back" class="icon-btn" aria-label="Close report">‹</button>
+    <div class="month-nav">
+      <button id="wr-mprev" class="icon-btn">‹</button>
+      <span id="wr-month"></span>
+      <button id="wr-mnext" class="icon-btn">›</button>
+    </div>
+    <button id="wr-csv" class="chip-btn">CSV</button>
+  </header>
+  <div id="wr-body">
+    <div id="wr-summary"></div>
+    <div class="wr-controls">
+      <div id="wr-seg" role="group" aria-label="Report view">
+        <button data-wview="days">Days</button>
+        <button data-wview="entry">Entry</button>
+      </div>
+      <label id="wr-autofill" class="set-row" hidden>Fill short days from balance <input id="wr-af" type="checkbox"></label>
+    </div>
+    <div id="wr-list"></div>
+  </div>
+</section>
+
+<!-- Work day editor -->
+<div id="work-modal" hidden>
+  <div id="wm-card" class="card">
+    <h3 id="wm-title">Work hours</h3>
+    <div class="f-row two">
+      <label>Day type
+        <select id="wm-type">
+          <option value="work">Work</option>
+          <option value="vacation">Vacation</option>
+          <option value="holiday">Holiday</option>
+          <option value="sick">Sick</option>
+        </select>
+      </label>
+      <label>Home office
+        <span class="wm-home-wrap"><input id="wm-home" type="checkbox" class="hd-switch"></span>
+      </label>
+    </div>
+    <div class="f-row">
+      <label>Work periods</label>
+      <div id="wm-segs"></div>
+      <button id="wm-addseg" class="mini-btn">＋ Add period</button>
+    </div>
+    <div class="f-row">
+      <label>Company entry override (optional)</label>
+      <div class="wm-seg"><input id="wm-es" type="time"><span>–</span><input id="wm-ee" type="time"></div>
+    </div>
+    <input id="wm-note" type="text" maxlength="60" placeholder="Note (e.g. business trip location)">
+    <div class="wm-btns">
+      <button id="wm-del" class="chip-btn danger">Clear day</button>
+      <span class="spacer"></span>
+      <button id="wm-cancel" class="chip-btn">Cancel</button>
+      <button id="wm-save" class="chip-btn primary">Save</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="snap-canvas" hidden></canvas>
 <script src="icons-data.js"></script>
 <script src="icons.js"></script>
 <script src="app.js"></script>
+<script src="work.js"></script>
 </body>
 </html>
