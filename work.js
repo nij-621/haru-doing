@@ -22,6 +22,7 @@ let wcfg = {
 };
 let wrMonth = todayStr().slice(0, 7);
 let wrView = 'days';                       // days | entry
+let missOpen = new Set();                  // 펼쳐서 보는 'No record' 묶음 (월:시작일 키)
 let wmDate = null, wmSegs = [];            // 에디터 상태
 
 /* ---------- 저장/불러오기 ---------- */
@@ -141,7 +142,9 @@ function monthActual(month) {
   return sum;
 }
 
-/* ---------- Today 탭 펀치 카드 ---------- */
+/* ---------- Today 탭 펀치 카드 (기본 접힘 한 줄, 탭하면 상세 펼침) ---------- */
+let wkOpen = false;
+
 function renderWorkCard() {
   const el = $('#work-card');
   if (!el) return;
@@ -149,52 +152,92 @@ function renderWorkCard() {
   const ds = cur, isToday = ds === todayStr();
   const info = dayInfo(ds);
   const rec = info.rec;
-  const running = isToday && rec && (rec.seg || []).some(x => x.s && !x.e);
   const d = parseDate(ds);
-  let h = `<div class="wk-head">
-    <span class="wk-title">${iconSvg('work', 16)}Work</span>
-    <label class="wk-home set-row">Home office <input id="wk-home" type="checkbox" ${rec && rec.home ? 'checked' : ''}></label>
-  </div>`;
+  const isRest = !info.off && (wcfg.base[d.getDay()] || 0) === 0;
+
+  // 주말·휴무일이고 기록 없음 → 카드 대신 작은 링크만 (드문 주말 근무는 이 링크로 기록)
+  if (!rec && isRest) {
+    el.classList.add('ghost');
+    el.innerHTML = '<button class="wk-ghost">＋ Log work</button>';
+    el.querySelector('.wk-ghost').onclick = () => openWorkModal(ds);
+    return;
+  }
+  el.classList.remove('ghost');
+
+  const running = isToday && rec && (rec.seg || []).some(x => x.s && !x.e);
   const stale = staleOpenDate();
-  if (stale) h += `<button class="wk-warn" id="wk-stale">Missing end time on ${stale} — tap to fix</button>`;
+
+  // 접힌 줄: 상태 요약 (출근 전 / 근무 중 경과 / 퇴근 후 순근무·±)
+  let state;
   if (info.off) {
-    h += `<div class="wk-off">${WTYPES[rec.type] || rec.type}${rec.note ? ' · ' + esc(rec.note) : ''}</div>`;
+    state = `<span class="wk-state off">${WTYPES[rec.type] || rec.type}</span>`;
+  } else if (running) {
+    const openSeg = sortedSegs(rec).find(x => !x.e);
+    state = `<span class="wk-state run">${openSeg.s} – now<b>${fmtDur(Math.max(0, nowM() - t2m(openSeg.s)))}</b></span>`;
+  } else if (info.gross) {
+    state = `<span class="wk-state"><b>${fmtDur(info.net)}</b>${fmtSign(info.diff)}${rec && rec.home ? iconSvg('home', 13) : ''}</span>`;
   } else {
-    const segs = rec ? sortedSegs(rec) : [];
-    if (segs.length) {
-      h += '<div class="wk-segs">';
-      for (const sg of segs) {
-        const openNow = !sg.e;
-        const end = sg.e || (isToday ? 'now' : '—');
-        const mins = sg.e ? t2m(sg.e) - t2m(sg.s) : (isToday ? nowM() - t2m(sg.s) : 0);
-        h += `<div class="wk-seg${openNow ? ' run' : ''}"><span>${sg.s} – ${end}</span><span>${mins > 0 ? fmtDur(mins) : ''}${openNow && isToday ? '…' : ''}</span></div>`;
-      }
-      if (info.deducted) h += `<div class="wk-lunch">Lunch −${fmtDur(wcfg.lunch)} (no break logged)</div>`;
-      h += '</div>';
-    }
+    state = `<span class="wk-state none">${isToday ? 'Not started' : 'No record'}</span>`;
   }
-  h += '<div class="wk-btns">';
+  let action = '';
   if (isToday && !info.off) {
-    h += running
+    action = running
       ? '<button id="wk-punch" class="wk-main out">End work</button>'
-      : `<button id="wk-punch" class="wk-main">${rec && (rec.seg || []).length ? 'Resume work' : 'Start work'}</button>`;
+      : `<button id="wk-punch" class="wk-main">${rec && (rec.seg || []).length ? 'Resume' : 'Start work'}</button>`;
   }
-  h += `<button id="wk-edit" class="chip-btn">${iconSvg('writing', 15)} Edit</button></div>`;
-  const parts = [];
-  if (info.gross || info.off) parts.push(`<b>${fmtDur(info.net)}</b> · ${isToday ? 'Today' : WEEKDAYS[d.getDay()]} ${fmtSign(info.diff)}`);
-  parts.push(`${MONTHS[d.getMonth()]} ${fmtSign(monthActual(ds.slice(0, 7)))}`);
-  h += `<div class="wk-foot"><span>${parts.join(' · ')}</span><button id="wk-report" class="wk-link">Report ›</button></div>`;
+  let h = `<div class="wk-row" id="wk-row">
+    <span class="wk-ico">${iconSvg('work', 16)}</span>
+    ${state}
+    <span class="wk-caret${wkOpen ? ' open' : ''}">›</span>
+    ${action}
+    <button id="wk-report" class="icon-btn wk-repbtn" aria-label="Work report">${iconSvg('calendar', 17)}</button>
+  </div>`;
+  if (stale) h += `<button class="wk-warn" id="wk-stale">Missing end time on ${stale} — tap to fix</button>`;
+
+  if (wkOpen) {
+    h += '<div class="wk-detail">';
+    if (info.off) {
+      h += `<div class="wk-off">${WTYPES[rec.type] || rec.type}${rec.note ? ' · ' + esc(rec.note) : ''}</div>`;
+    } else {
+      const segs = rec ? sortedSegs(rec) : [];
+      if (segs.length) {
+        h += '<div class="wk-segs">';
+        for (const sg of segs) {
+          const openNow = !sg.e;
+          const end = sg.e || (isToday ? 'now' : '—');
+          const mins = sg.e ? t2m(sg.e) - t2m(sg.s) : (isToday ? nowM() - t2m(sg.s) : 0);
+          h += `<div class="wk-seg${openNow ? ' run' : ''}"><span>${sg.s} – ${end}</span><span>${mins > 0 ? fmtDur(mins) : ''}${openNow && isToday ? '…' : ''}</span></div>`;
+        }
+        if (info.deducted) h += `<div class="wk-lunch">Lunch −${fmtDur(wcfg.lunch)} (no break logged)</div>`;
+        h += '</div>';
+      }
+    }
+    h += `<label class="wk-home set-row">Home office <input id="wk-home" type="checkbox" ${rec && rec.home ? 'checked' : ''}></label>`;
+    h += `<div class="wk-btns"><button id="wk-edit" class="chip-btn">${iconSvg('writing', 15)} Edit</button></div>`;
+    const parts = [];
+    if (info.gross || info.off) parts.push(`Net <b>${fmtDur(info.net)}</b> (${fmtSign(info.diff)})`);
+    parts.push(`${MONTHS[d.getMonth()]} ${fmtSign(monthActual(ds.slice(0, 7)))}`);
+    h += `<div class="wk-foot">${parts.join(' · ')}</div>`;
+    h += '</div>';
+  }
   el.innerHTML = h;
 
-  $('#wk-home').onchange = e => {
+  $('#wk-row').onclick = e => {
+    if (e.target.closest('button,input,label')) return;
+    wkOpen = !wkOpen;
+    renderWorkCard();
+  };
+  const punch = $('#wk-punch');
+  if (punch) punch.onclick = () => { running ? punchEnd() : punchStart(); };
+  $('#wk-report').onclick = () => openReport(ds.slice(0, 7));
+  const home = $('#wk-home');
+  if (home) home.onchange = e => {
     work[ds] = work[ds] || { seg: [] };
     work[ds].home = e.target.checked;
     wsave();
   };
-  const punch = $('#wk-punch');
-  if (punch) punch.onclick = () => { running ? punchEnd() : punchStart(); };
-  $('#wk-edit').onclick = () => openWorkModal(ds);
-  $('#wk-report').onclick = () => openReport(ds.slice(0, 7));
+  const edit = $('#wk-edit');
+  if (edit) edit.onclick = () => openWorkModal(ds);
   const st = $('#wk-stale');
   if (st) st.onclick = () => openWorkModal(stale);
 }
@@ -204,6 +247,7 @@ function punchStart() {
   const rec = work[ds] = work[ds] || { seg: [] };
   rec.seg = rec.seg || [];
   rec.seg.push({ s: nowT(), e: null });
+  wkOpen = true; // 시작 직후 홈오피스 토글이 보이게 펼침
   wsave(); renderWorkCard();
 }
 function punchEnd() {
@@ -308,13 +352,36 @@ function renderReport() {
 
   const daysIn = new Date(y, mo, 0).getDate();
   const lastDs = `${y}-${pad(mo)}-${pad(daysIn)}`;
-  const { map } = entriesThrough(lastDs);
+  const { map, left } = entriesThrough(lastDs);
   const today = todayStr();
   const from = trackingStart();
 
-  let netSum = 0, baseSum = 0, entSum = 0, entBase = 0, lastLeft = null, missing = 0;
+  let netSum = 0, baseSum = 0, entSum = 0, entBase = 0, missing = 0;
   const list = $('#wr-list');
   list.innerHTML = '';
+
+  // 연속된 '기록 없는 평일'은 한 줄로 묶고, 탭하면 펼침
+  let missBuf = [];
+  const flushMiss = () => {
+    if (!missBuf.length) return;
+    const key = wrMonth + ':' + missBuf[0];
+    if (missBuf.length > 1 && !missOpen.has(key)) {
+      const a = parseDate(missBuf[0]).getDate(), b = parseDate(missBuf[missBuf.length - 1]).getDate();
+      const row = document.createElement('div');
+      row.className = 'day-row wr-row wr-missing';
+      row.innerHTML = `<div class="d">${a}–${b}</div><div class="wr-ho"></div>
+        <div class="info"><span class="wr-miss">No record · ${missBuf.length} days</span></div><div class="cnt">›</div>`;
+      row.onclick = () => { missOpen.add(key); renderReport(); };
+      list.appendChild(row);
+    } else {
+      for (const mds of missBuf) {
+        const row = mkDayRow(mds, '<span class="wr-miss">No record</span>', '', '');
+        row.classList.add('wr-missing');
+        list.appendChild(row);
+      }
+    }
+    missBuf = [];
+  };
 
   for (let day = 1; day <= daysIn; day++) {
     const ds = `${y}-${pad(mo)}-${pad(day)}`;
@@ -322,17 +389,12 @@ function renderReport() {
     const dow = parseDate(ds).getDay();
     const info = dayInfo(ds);
     const ent = map[ds];
-    if (ent && ent.left !== undefined) lastLeft = ent.left;
 
     if (!info.hasData || (!info.gross && !info.off)) {
-      if (dow >= 1 && dow <= 5 && from && ds >= from) {
-        missing++;
-        const row = mkDayRow(ds, `<span class="wr-miss">No record</span>`, '', '');
-        row.classList.add('wr-missing');
-        list.appendChild(row);
-      }
+      if (dow >= 1 && dow <= 5 && from && ds >= from) { missing++; missBuf.push(ds); }
       continue;
     }
+    flushMiss();
     netSum += info.net; baseSum += info.base;
     if (ent && !ent.offType && ent.net !== undefined) { entSum += ent.net; entBase += info.base; }
 
@@ -356,14 +418,13 @@ function renderReport() {
       }
     }
   }
+  flushMiss();
   if (!list.children.length) list.innerHTML = '<div class="empty-note">No work records this month.<br>Use Start work on the Today screen.</div>';
 
-  const finalLeft = lastLeft !== null ? lastLeft : wcfg.opening;
   $('#wr-summary').innerHTML = `
-    <div class="wr-metric"><small>Worked / target</small><b>${fmtDur(netSum)} / ${fmtDur(baseSum)}</b></div>
-    <div class="wr-metric"><small>Actual overtime</small><b class="${cls(netSum - baseSum)}">${fmtSign(netSum - baseSum)}</b></div>
-    <div class="wr-metric"><small>Entered overtime</small><b class="${cls(entSum - entBase)}">${fmtSign(entSum - entBase)}</b></div>
-    <div class="wr-metric"><small>Left overtime</small><b class="${cls(finalLeft)}">${fmtSign(finalLeft)}</b></div>`
+    <div class="wr-metric"><small>${MONTHS[mo - 1]} overtime</small><b class="${cls(netSum - baseSum)}">${fmtSign(netSum - baseSum)}</b></div>
+    <div class="wr-metric"><small>Left overtime</small><b class="${cls(left)}">${fmtSign(left)}</b></div>
+    <div class="wr-sub">Worked ${fmtDur(netSum)} / ${fmtDur(baseSum)} · Entered ${fmtSign(entSum - entBase)}</div>`
     + (missing ? `<div class="wr-note">${missing} weekday${missing > 1 ? 's' : ''} without a record — tap to fill or mark as vacation.</div>` : '');
 }
 
@@ -378,6 +439,7 @@ function mkDayRow(ds, infoHtml, cnt, extra, home, entryDs) {
     <div class="wr-ho">${home ? iconSvg('home', 14) : ''}</div>
     <div class="info">${infoHtml}</div>
     <div class="cnt">${cnt}</div>${extra || ''}`;
+  if ((wcfg.base[d.getDay()] || 0) === 0) row.classList.add('wkend'); // 주말·기준 0인 요일 구분
   if (entryDs !== undefined && work[ds]) {
     const chk = document.createElement('input');
     chk.type = 'checkbox';
