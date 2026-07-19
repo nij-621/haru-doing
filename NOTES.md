@@ -147,3 +147,8 @@ createdAt   생성 시각 (인박스 정렬에 사용)
     - 펀치 카드를 **기본 접힘 한 줄**로: 상태 요약(출근 전 'Not started' / 근무 중 경과시간 / 퇴근 후 '순근무 · ±') + 액션 버튼 + 리포트 아이콘. 탭하면 상세(구간, 홈오피스 토글, Edit, 월 누적) 펼침. Start 직후엔 자동 펼침
     - **주말·휴무일(기준 0)이고 기록 없으면 카드 숨김** — 점선 '＋ Log work' 링크만 (탭하면 편집 모달)
     - 리포트: 요약을 2카드(월 실제 ±, Left overtime) + 보조 한 줄로 간소화. **연속된 No record 평일을 '16–17 · No record · 2 days' 한 줄로 묶고** 탭하면 펼침. 주말 행은 날짜를 주황색으로 구분. Report 진입은 카드 헤더의 달력 아이콘
+21. 근무 편집 모달 홈오피스 스위치 폭 버그(.f-row.two input의 width:100%가 46px를 덮어씀) 수정 + **기분 카드 개편** (sw 캐시 v8):
+    - 이모지 9종 → **Lucide 라인 아이콘**(icons-data.js에 mood-* 9종 추가: laugh/smile/meh/frown/cloud-rain/angry/moon/thermometer/party-popper). 저장값도 아이콘 id — **예전 이모지 저장값은 moodOf()가 해석**(캔버스 이미지·위젯 텍스트는 emoji fallback). 기분 아이콘은 TASK_ICONS에 없으므로 할 일 아이콘 픽커에는 안 나옴
+    - **선택 후 자동 접힘**: 기분을 고르면 '아이콘 + 일기(없으면 라벨) ›' 한 줄로 축소, 탭하면 재펼침 (moodUiKey로 날짜 바뀌면 리셋)
+    - 일기 입력칸은 내용 있거나 열었을 때만, 평소엔 '✎ One-line diary' 고스트 버튼
+    - 카드를 Today 최하단(할 일 목록 아래)으로 이동. All 탭 기분 셀도 라인 아이콘으로 표시

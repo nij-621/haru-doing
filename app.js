@@ -10,8 +10,20 @@ const todayStr = () => fmt(new Date());
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const MOODS = ['😄', '🙂', '😐', '😔', '😢', '😠', '🥱', '🤒', '🥳'];
-const MOOD_LABELS = ['Happy', 'Good', 'Okay', 'Down', 'Sad', 'Angry', 'Tired', 'Sick', 'Party'];
+/* 기분: 라인 아이콘으로 표시·저장(id). 예전에 저장된 이모지 값은 moodOf()가 해석.
+   emoji는 이미지 저장(캔버스)·위젯 텍스트용 fallback */
+const MOODS = [
+  { id: 'mood-happy', emoji: '😄', label: 'Happy' },
+  { id: 'mood-good',  emoji: '🙂', label: 'Good' },
+  { id: 'mood-okay',  emoji: '😐', label: 'Okay' },
+  { id: 'mood-down',  emoji: '😔', label: 'Down' },
+  { id: 'mood-sad',   emoji: '😢', label: 'Sad' },
+  { id: 'mood-angry', emoji: '😠', label: 'Angry' },
+  { id: 'mood-tired', emoji: '🥱', label: 'Tired' },
+  { id: 'mood-sick',  emoji: '🤒', label: 'Sick' },
+  { id: 'mood-party', emoji: '🥳', label: 'Party' },
+];
+const moodOf = v => v ? (MOODS.find(m => m.id === v || m.emoji === v) || null) : null;
 const COLORS = ['#ff7b54', '#4a90d9', '#4caf7d', '#e8a33d', '#b085d6', '#e05c7a', '#7a8a99'];
 const STATUS = {
   todo:   { sym: '○', label: 'To-do' },
@@ -33,6 +45,9 @@ let editing = null;         // 모달에서 수정 중인 항목
 let inboxSort = 'recent';   // 인박스 정렬: recent | oldest
 let tlScrollKey = '';       // 타임라인 자동 스크롤이 이미 실행된 날짜 키
 let notified = new Set();
+let moodUiKey = '';         // 기분 카드 접힘 상태가 적용된 날짜
+let moodOpen = false;       // 기분 선택 후에도 펼쳐 볼 때 true
+let diaryOpen = false;      // 일기 입력칸 열림
 
 /* ---------- 저장/불러오기 ---------- */
 function load() {
@@ -169,24 +184,47 @@ function renderToday() {
     + `<span class="dl-sub">${WEEKDAYS[d.getDay()]}${isToday ? ' · Today' : ''}</span>`;
   $$('#view-seg button').forEach(b => b.classList.toggle('active', b.dataset.view === settings.view));
 
-  // 기분 + 일기
+  // 기분 + 일기 — 기분을 고르면 한 줄로 접힘, 탭하면 다시 펼침
   const day = days[cur] || {};
+  if (moodUiKey !== cur) { moodUiKey = cur; moodOpen = false; diaryOpen = false; }
+  const md = moodOf(day.mood);
+  const collapsed = !!md && !moodOpen;
+  const line = $('#mood-line');
   const moodRow = $('#mood-row');
-  moodRow.innerHTML = '';
-  MOODS.forEach((m, mi) => {
-    const b = document.createElement('button');
-    b.textContent = m;
-    b.title = MOOD_LABELS[mi];
-    b.setAttribute('aria-label', MOOD_LABELS[mi]);
-    b.classList.toggle('sel', day.mood === m);
-    b.onclick = () => {
-      days[cur] = days[cur] || {};
-      days[cur].mood = days[cur].mood === m ? null : m;
-      save(); renderToday();
-    };
-    moodRow.appendChild(b);
-  });
   const diary = $('#diary-input');
+  const ghost = $('#diary-ghost');
+  line.hidden = !collapsed;
+  moodRow.hidden = collapsed;
+  if (collapsed) {
+    line.innerHTML = `<span class="ml-ico">${iconSvg(md.id, 18)}</span><span class="ml-text"></span><span class="ml-caret">›</span>`;
+    const txt = line.querySelector('.ml-text');
+    txt.textContent = day.diary || md.label;
+    txt.classList.toggle('quiet', !day.diary);
+    diary.hidden = true;
+    ghost.hidden = true;
+  } else {
+    moodRow.innerHTML = '';
+    MOODS.forEach(m => {
+      const b = document.createElement('button');
+      b.innerHTML = iconSvg(m.id, 20);
+      b.title = m.label;
+      b.setAttribute('aria-label', m.label);
+      b.classList.toggle('sel', !!md && md.id === m.id);
+      b.onclick = () => {
+        days[cur] = days[cur] || {};
+        const picked = !(md && md.id === m.id);
+        days[cur].mood = picked ? m.id : null;
+        if (picked) moodOpen = false; // 고르면 한 줄로 접힘
+        save(); renderToday();
+      };
+      moodRow.appendChild(b);
+    });
+    // 일기: 내용이 있거나 입력을 연 경우만 입력칸, 아니면 작은 버튼
+    const showInput = !!day.diary || diaryOpen;
+    diary.hidden = !showInput;
+    ghost.hidden = showInput;
+    if (ghost.hidden === false) ghost.innerHTML = iconSvg('writing', 13) + ' One-line diary';
+  }
   if (diary.value !== (day.diary || '')) diary.value = day.diary || '';
 
   // 이월 안내
@@ -625,7 +663,9 @@ function renderMonth() {
     row.className = 'day-row' + (ds === today ? ' today' : '');
     row.innerHTML = `<div class="d">${d}<small>${WEEKDAYS[parseDate(ds).getDay()]}</small></div>
       <div class="m"></div><div class="info"></div><div class="cnt"></div>`;
-    row.querySelector('.m').textContent = info.mood || '';
+    const mMood = moodOf(info.mood);
+    if (mMood) row.querySelector('.m').innerHTML = `<span class="m-ico">${iconSvg(mMood.id, 17)}</span>`;
+    else row.querySelector('.m').textContent = info.mood || '';
     row.querySelector('.info').textContent = info.diary || (list[0] ? list[0].title + (list.length > 1 ? ` +${list.length - 1} more` : '') : '');
     const cnt = row.querySelector('.cnt');
     if (total) {
@@ -799,7 +839,7 @@ function saveAsImage() {
   ctx.fillStyle = ink;
   ctx.font = 'bold 34px sans-serif';
   ctx.fillText(`${MONTHS[d.getMonth()]} ${d.getDate()} (${WEEKDAYS[d.getDay()]})`, pad_, 74);
-  if (day.mood) { ctx.font = '38px sans-serif'; ctx.fillText(day.mood, W - pad_ - 44, 76); }
+  if (day.mood) { ctx.font = '38px sans-serif'; ctx.fillText((moodOf(day.mood) || { emoji: day.mood }).emoji, W - pad_ - 44, 76); }
   ctx.strokeStyle = ink2; ctx.setLineDash([6, 5]);
   ctx.beginPath(); ctx.moveTo(pad_, 104); ctx.lineTo(W - pad_, 104); ctx.stroke();
   ctx.setLineDash([]);
@@ -879,7 +919,7 @@ async function updateWidgetData() {
     const list = tasksForDay(todayStr());
     const day = days[todayStr()] || {};
     const data = {
-      date: todayStr(), mood: day.mood || '',
+      date: todayStr(), mood: day.mood ? (moodOf(day.mood) || { emoji: day.mood }).emoji : '',
       remaining: list.filter(t => t.status === 'todo' || t.status === 'doing').length,
       items: list.slice(0, 6).map(t => ({
         sym: STATUS[t.status].sym,
@@ -948,6 +988,8 @@ function bind() {
     }
   }, { passive: true });
   $('#btn-snap').onclick = saveAsImage;
+  $('#mood-line').onclick = () => { moodOpen = true; renderToday(); };
+  $('#diary-ghost').onclick = () => { diaryOpen = true; renderToday(); $('#diary-input').focus(); };
   $('#diary-input').addEventListener('change', e => {
     days[cur] = days[cur] || {};
     days[cur].diary = e.target.value.trim();

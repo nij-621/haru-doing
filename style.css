@@ -99,14 +99,30 @@ main{max-width:640px; margin:0 auto; padding:16px}
   background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px;
 }
 
-/* ---------- mood / diary (compact) ---------- */
-#mood-card{margin-bottom:16px; padding:9px 12px; box-shadow:none}
+/* ---------- mood / diary (라인 아이콘 + 선택 후 접힘) ---------- */
+#mood-card{margin:18px 0 16px; padding:9px 12px; box-shadow:none}
 #mood-row{display:flex; gap:2px; justify-content:space-between; margin-bottom:7px}
-#mood-row button{font-size:1.05rem; padding:3px 4px; border-radius:10px; filter:grayscale(1); opacity:.4; transition:.18s}
-#mood-row button.sel{filter:none; opacity:1; transform:scale(1.12); background:var(--accent-soft)}
-@media(hover:hover){#mood-row button:hover{opacity:.75; filter:grayscale(.3)}}
+#mood-row button{
+  display:flex; align-items:center; justify-content:center;
+  width:32px; height:32px; border-radius:10px;
+  color:var(--ink2); opacity:.55; transition:.18s;
+}
+#mood-row button.sel{opacity:1; color:var(--accent); background:var(--accent-soft)}
+@media(hover:hover){#mood-row button:hover{opacity:.85; background:var(--bg)}}
+#mood-line{display:flex; align-items:center; gap:9px; min-height:30px; cursor:pointer}
+#mood-line .ml-ico{display:flex; flex:none; color:var(--accent)}
+#mood-line .ml-text{flex:1; min-width:0; font-size:.85rem; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+#mood-line .ml-text.quiet{color:var(--ink2); font-weight:600}
+#mood-line .ml-caret{flex:none; color:var(--ink2); font-weight:800; font-size:.9rem; padding:0 2px}
+.diary-ghost{
+  display:flex; align-items:center; gap:6px; width:100%;
+  font-size:.78rem; font-weight:700; color:var(--ink2); padding:5px 2px; border-radius:8px;
+}
+.diary-ghost:active{background:var(--accent-soft); color:var(--accent-ink)}
+.diary-ghost svg{opacity:.8}
 #diary-input{width:100%; background:var(--bg); border:1px solid transparent; border-radius:10px; padding:6px 10px; font-size:.85rem}
 #diary-input::placeholder{color:var(--ink2)}
+.day-row .m .m-ico{display:inline-flex; color:var(--accent); vertical-align:middle}
 
 .carry-note{font-size:.8rem; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); border-radius:12px; padding:9px 14px; margin-bottom:12px}
 .carry-note svg{vertical-align:-2px; margin-right:2px}
@@ -498,6 +514,8 @@ label.wk-home.set-row{justify-content:space-between; padding:7px 2px 0}
 #wm-card{width:100%; max-width:420px; border-radius:22px; padding:20px; max-height:88vh; overflow-y:auto; border:none; box-shadow:var(--shadow-lg)}
 #wm-card h3{margin:0 0 14px; font-size:1.1rem; font-weight:800}
 .wm-home-wrap{display:flex; align-items:center; min-height:38px}
+/* .f-row.two input{width:100%}가 스위치 폭을 덮어쓰지 않게 복원 */
+.f-row.two input.hd-switch{width:46px; flex:none}
 .wm-seg{display:flex; align-items:center; gap:8px; margin-bottom:8px}
 .wm-seg input[type=time]{flex:1; min-height:38px; border-color:var(--line)}
 .wm-seg span{color:var(--ink2)}
