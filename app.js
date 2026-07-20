@@ -13,15 +13,18 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /* 기분: 라인 아이콘으로 표시·저장(id). 예전에 저장된 이모지 값은 moodOf()가 해석.
    emoji는 이미지 저장(캔버스)·위젯 텍스트용 fallback */
 const MOODS = [
+  { id: 'mood-excited', emoji: '🥳', label: 'Excited', aliases: ['mood-party'] },
   { id: 'mood-happy', emoji: '😄', label: 'Happy' },
-  { id: 'mood-good',  emoji: '🙂', label: 'Good' },
+  { id: 'mood-calm',  emoji: '😌', label: 'Calm' },
   { id: 'mood-okay',  emoji: '😐', label: 'Okay' },
-  { id: 'mood-down',  emoji: '😔', label: 'Down' },
   { id: 'mood-sad',   emoji: '😢', label: 'Sad' },
+  { id: 'mood-stressed', emoji: '😣', label: 'Stressed' },
   { id: 'mood-angry', emoji: '😠', label: 'Angry' },
   { id: 'mood-tired', emoji: '🥱', label: 'Tired' },
   { id: 'mood-sick',  emoji: '🤒', label: 'Sick' },
-  { id: 'mood-excited', emoji: '🥳', label: 'Excited', aliases: ['mood-party'] },
+  // Legacy moods remain readable in old records but are no longer shown in the picker.
+  { id: 'mood-good',  emoji: '🙂', label: 'Good', selectable: false },
+  { id: 'mood-down',  emoji: '😔', label: 'Down', selectable: false },
 ];
 const moodOf = v => v ? (MOODS.find(m => m.id === v || m.emoji === v || (m.aliases || []).includes(v)) || null) : null;
 const COLORS = ['#ff7b54', '#4a90d9', '#4caf7d', '#e8a33d', '#b085d6', '#e05c7a', '#7a8a99'];
@@ -204,7 +207,7 @@ function renderToday() {
     ghost.hidden = true;
   } else {
     moodRow.innerHTML = '';
-    MOODS.forEach(m => {
+    MOODS.filter(m => m.selectable !== false).forEach(m => {
       const b = document.createElement('button');
       b.innerHTML = iconSvg(m.id, 20);
       b.title = m.label;
