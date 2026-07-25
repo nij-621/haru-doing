@@ -1,13 +1,23 @@
 /* 하루두잉 서비스 워커: 오프라인 캐시 + (Windows 11 Edge) 위젯 */
-const CACHE = 'hd-shell-v10';
+const BUILD = '12';
+const CACHE = `hd-shell-v${BUILD}`;
+const V = `?v=${BUILD}`;
 const SHELL = [
-  './', 'index.html', 'style.css', 'app.js', 'work.js', 'icons.js', 'icons-data.js', 'manifest.webmanifest',
+  './', 'index.html', `style.css${V}`, `app.js${V}`, `work.js${V}`, `icons.js${V}`, `icons-data.js${V}`, `manifest.webmanifest${V}`,
   'icons/icon-192.png', 'icons/icon-512.png',
   'widgets/today-card.json', 'widgets/today-data.json',
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil((async () => {
+    const c = await caches.open(CACHE);
+    await Promise.all(SHELL.map(async asset => {
+      const res = await fetch(new Request(asset, { cache: 'reload' }));
+      if (!res.ok) throw new Error(`Failed to cache ${asset}: ${res.status}`);
+      await c.put(asset, res);
+    }));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', e => {
@@ -46,7 +56,7 @@ self.addEventListener('fetch', e => {
   if (url.origin === location.origin) {
     e.respondWith((async () => {
       try {
-        const res = await fetch(e.request);
+        const res = await fetch(e.request, { cache: 'no-store' });
         if (res.ok && e.request.method === 'GET') {
           const c = await caches.open(CACHE);
           c.put(e.request, res.clone());

@@ -1,4 +1,6 @@
 'use strict';
+
+const APP_BUILD = '11';
 /* 하루두잉 — 개인용 데일리 플래너 (두잉두잉 + Structured 스타일) */
 
 const $ = s => document.querySelector(s);
@@ -381,9 +383,18 @@ function renderListView(list) {
 }
 
 /* ---------- 타임라인 (Structured식 순차 레이아웃) ----------
-   task 수만큼 늘어나고, 겹치지 않으며, 빈 시간은 점선 커넥터로 압축 */
+   task 수만큼 늘어나고, 빈 시간은 점선 커넥터로 압축.
+   블록 높이는 소요시간에 비례하고, 시간이 겹치면 그 사이에 표시가 들어간다 */
 const timeToMins = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
 const minsToTime = mins => `${pad(Math.floor(Math.max(0, Math.min(mins, 1439)) / 60))}:${pad(Math.max(0, Math.min(mins, 1439)) % 60)}`;
+
+/* 소요시간 → 블록 높이(px). 짧은 일도 읽히도록 최소 높이, 아주 긴 일은 압축 */
+const TL_MIN_H = 44, TL_MAX_H = 260, TL_PX_PER_MIN = 1.7;
+const tlHeight = dur => Math.round(Math.max(TL_MIN_H, Math.min((dur || 0) * TL_PX_PER_MIN, TL_MAX_H)));
+const fmtDur = mins => {
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+};
 
 function renderTimelineView(list, isToday) {
   const un = $('#tl-unsched');
@@ -418,27 +429,39 @@ function renderTimelineView(list, isToday) {
     nowEl = n;
   };
 
-  let prevEnd = null;
+  let prevEnd = null, prevStart = null, prevItem = null;
   let nowInserted = !isToday;
-  for (const t of timed) {
+  timed.forEach((t, i) => {
     const start = timeToMins(t.time);
     const end = start + (t.dur || 0);
-    // 빈 시간 커넥터 (길수록 살짝 길어지지만 최대 64px로 압축)
+    const next = timed[i + 1];
+    // 끝 시간 라벨: 다음 일정이 같은 시각에 바로 이어지면 생략 (같은 라벨 두 번 방지)
+    const showEnd = !!t.dur && (!next || timeToMins(next.time) !== end);
+    const item = seqCard(t, t === nextTask, { showEnd });
+
     if (prevEnd !== null && start > prevEnd) {
+      // 빈 시간 커넥터 (길수록 살짝 길어지지만 최대 64px로 압축)
       const gap = start - prevEnd;
       const g = document.createElement('div');
       g.className = 'tls-gap';
       g.style.height = Math.min(22 + gap / 60 * 8, 64) + 'px';
-      if (gap >= 45) g.innerHTML = `<span>${minsToTime(prevEnd)} – ${minsToTime(start)}</span>`;
+      if (gap >= 45) g.innerHTML = `<span>${fmtDur(gap)} free</span>`;
       const at = Math.ceil(prevEnd / 15) * 15;
       g.title = 'Add a task here';
       g.onclick = () => openModal(null, { date: cur, time: minsToTime(at) });
       grid.appendChild(g);
+    } else if (prevEnd !== null && (start < prevEnd || start === prevStart)) {
+      // 시간이 겹침 — 두 블록 사이에 표시
+      grid.appendChild(overlapMark(Math.min(prevEnd, end) - start));
+      item.classList.add('ov');
+      if (prevItem) prevItem.classList.add('ov');
     }
     if (!nowInserted && nowMins < start) { addNowLine(); nowInserted = true; }
-    grid.appendChild(seqCard(t, t === nextTask));
+    grid.appendChild(item);
+    prevItem = item;
+    prevStart = start;
     prevEnd = prevEnd === null ? end : Math.max(prevEnd, end);
-  }
+  });
   if (!nowInserted) addNowLine();
   // 현재 시각으로 자동 스크롤은 "날짜/뷰가 바뀐 첫 렌더"에만 —
   // 상태 변경·드래그 후 재렌더에서 화면이 튀지 않도록
@@ -452,14 +475,31 @@ function renderTimelineView(list, isToday) {
   }
 }
 
-/* 순차 타임라인 카드: 시간 라벨 + 컬러 아이콘 도트(세로 레일 위) + 카드 */
-function seqCard(t, isNext) {
+/* 겹침 표시: 두 블록 사이에 들어가는 렌즈 모양 + 안내 문구 */
+function overlapMark(mins) {
+  const el = document.createElement('div');
+  el.className = 'tls-ov';
+  el.innerHTML = `<span class="tls-ov-lens"></span>`;
+  const txt = document.createElement('span');
+  txt.className = 'tls-ov-text';
+  txt.innerHTML = 'Tasks are <b>overlapping</b>';
+  if (mins > 0) txt.appendChild(document.createTextNode(` · ${fmtDur(mins)}`));
+  el.appendChild(txt);
+  return el;
+}
+
+/* 순차 타임라인 카드: 시간 라벨 + 컬러 블록(세로 레일 위, 소요시간에 비례) + 카드 */
+function seqCard(t, isNext, opts = {}) {
   const item = document.createElement('div');
   item.className = 'tls-item st-' + t.status + (isNext ? ' next' : '');
   item.style.setProperty('--tcolor', t.color || 'var(--accent)');
+  item.style.setProperty('--tl-h', tlHeight(t.dur) + 'px');
   const end = t.dur ? minsToTime(timeToMins(t.time) + t.dur) : null;
   item.innerHTML = `
-    <div class="tls-time">${t.time}</div>
+    <div class="tls-time">
+      <span class="tl-t0">${t.time}</span>
+      ${opts.showEnd && end ? `<span class="tl-t1">${end}</span>` : ''}
+    </div>
     <div class="tls-rail"><span class="tls-dot"></span></div>
     <div class="tls-card">
       <div class="tls-body">
@@ -470,7 +510,7 @@ function seqCard(t, isNext) {
   const iconId = resolveIcon(t.emoji);
   if (iconId) item.querySelector('.tls-dot').innerHTML = iconSvg(iconId, 15);
   item.querySelector('.tls-title').textContent = t.title;
-  item.querySelector('.tls-sub').textContent = end ? `${t.time} – ${end} · ${t.dur}m` : t.time;
+  item.querySelector('.tls-sub').textContent = end ? `${t.time} – ${end} · ${fmtDur(t.dur)}` : t.time;
   if (t.note) item.querySelector('.tls-sub').textContent += '  ·  ' + t.note;
   const bullet = document.createElement('button');
   bullet.className = 'bullet';
@@ -529,9 +569,11 @@ function attachSeqDrag(item, t) {
     const steps = Math.round(dy / STEP_PX);
     newMins = Math.max(0, Math.min(origMins + steps * STEP_MIN, 1425));
     item.style.transform = `translateY(${steps * STEP_PX}px)`;
-    item.querySelector('.tls-time').textContent = minsToTime(newMins);
     const end = t.dur ? minsToTime(newMins + t.dur) : null;
-    item.querySelector('.tls-sub').textContent = end ? `${minsToTime(newMins)} – ${end} · ${t.dur}m` : minsToTime(newMins);
+    item.querySelector('.tl-t0').textContent = minsToTime(newMins);
+    const endLabel = item.querySelector('.tl-t1');
+    if (endLabel && end) endLabel.textContent = end;
+    item.querySelector('.tls-sub').textContent = end ? `${minsToTime(newMins)} – ${end} · ${fmtDur(t.dur)}` : minsToTime(newMins);
   });
   const finish = () => {
     clearTimeout(timer);
@@ -1075,7 +1117,21 @@ function init() {
     carryOver() && render();
   }, 60000);
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW 등록 실패', e));
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
+    navigator.serviceWorker.register(`sw.js?v=${APP_BUILD}`, { updateViaCache: 'none' })
+      .then(reg => {
+        const checkForUpdate = () => reg.update().catch(e => console.warn('SW 업데이트 확인 실패', e));
+        checkForUpdate();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') checkForUpdate();
+        });
+      })
+      .catch(e => console.warn('SW 등록 실패', e));
   }
 }
 init();
