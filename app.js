@@ -77,6 +77,13 @@ function repeatMatches(tpl, dateStr) {
   if (tpl.repeat === 'daily') return true;
   if (tpl.repeat === 'weekdays') return d.getDay() >= 1 && d.getDay() <= 5;
   if (tpl.repeat === 'weekly') return d.getDay() === t.getDay();
+  // monthly/quarterly/yearly: 템플릿과 같은 '일'. 그 달에 없는 날(29~31일)은 말일로 당김
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const dayMatch = d.getDate() === Math.min(t.getDate(), lastDay);
+  if (tpl.repeat === 'monthly') return dayMatch;
+  if (tpl.repeat === 'quarterly')
+    return dayMatch && ((d.getFullYear() - t.getFullYear()) * 12 + d.getMonth() - t.getMonth()) % 3 === 0;
+  if (tpl.repeat === 'yearly') return dayMatch && d.getMonth() === t.getMonth();
   return false;
 }
 
@@ -694,7 +701,7 @@ function renderSearch() {
   if (tplHits.length) {
     const note = document.createElement('div');
     note.id = 'search-count';
-    const label = { daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly' };
+    const label = { daily: 'Daily', weekdays: 'Weekdays', weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
     note.textContent = '🔁 Repeating: ' + tplHits.map(t => `${t.title} (${label[t.repeat] || t.repeat}, since ${t.date})`).join(', ')
       + ' — only days where you changed its status appear in the list above.';
     el.appendChild(note);
