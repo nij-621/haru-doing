@@ -6,6 +6,8 @@
   --done:#3fa372; --doing:#4e80c9; --defer:#d99a3d; --cancel:#b3aea4;
   --shadow:0 1px 2px rgba(40,35,25,.04), 0 2px 8px rgba(40,35,25,.05);
   --shadow-lg:0 8px 30px rgba(40,35,25,.16);
+  --ease-out:cubic-bezier(0.23,1,0.32,1);      /* 강한 ease-out (팝오버·다이얼로그) */
+  --ease-drawer:cubic-bezier(0.32,0.72,0,1);   /* iOS 드로어 커브 (바텀시트) */
   --fs:16px;
   --font:'Nunito',-apple-system,"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
 }
@@ -546,3 +548,37 @@ label.wk-home.set-row{justify-content:space-between; padding:7px 2px 0}
 .set-head{font-size:.7rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.09em}
 .set-row input.dur-input{width:90px; text-align:right; font-variant-numeric:tabular-nums; border-color:var(--line)}
 #ws-openm{border-color:var(--line)}
+
+/* ---------- 등장/퇴장 모션 (Emil 리뷰 2·3순위 — hidden 토글 → .show 클래스 전환) ----------
+   규칙: transform/opacity만 애니메이션, 퇴장은 등장보다 빠르게, 탭 전환·스와이프는 애니메이션 없음 */
+
+/* New task 바텀시트: translateY(100%)→0 · 320ms drawer 커브 + dim 페이드 (퇴장 260/220ms) */
+#modal{background:rgba(25,22,18,0); transition:background-color 220ms ease}
+#modal.show{background:rgba(25,22,18,.45); transition-duration:300ms}
+#modal-card{transform:translateY(100%); transition:transform 260ms var(--ease-drawer)}
+#modal.show #modal-card{transform:translateY(0); transition-duration:320ms}
+
+/* 상태 팝오버: scale(.95)+opacity · 150ms · origin은 JS가 불렛 위치로 지정 (퇴장 120ms) */
+#popover{opacity:0; transform:scale(.95); transition:transform 120ms var(--ease-out), opacity 120ms var(--ease-out)}
+#popover.show{opacity:1; transform:none; transition-duration:150ms}
+
+/* Move 다이얼로그: scale(.96)+opacity · 200ms · 모달이므로 origin 중앙 유지 (퇴장 150ms) */
+#move-modal{background:rgba(25,22,18,0); transition:background-color 150ms ease}
+#move-modal.show{background:rgba(25,22,18,.4); transition-duration:200ms}
+#move-card{opacity:0; transform:scale(.96); transition:transform 150ms var(--ease-out), opacity 150ms var(--ease-out)}
+#move-modal.show #move-card{opacity:1; transform:none; transition-duration:200ms}
+
+/* 완료 불렛: 260ms 팝(1→1.12→1) + 체크 60ms 뒤 스케일 등장 (절제된 확인 피드백) */
+.bullet{transition:transform .12s var(--ease-out), background-color .16s ease, border-color .16s ease, color .16s ease}
+.bullet.just-done{animation:blt-pop 260ms var(--ease-out)}
+.bullet.just-done .bsym{animation:sym-in 200ms var(--ease-out) 60ms backwards}
+@keyframes blt-pop{45%{transform:scale(1.12)}}
+@keyframes sym-in{from{transform:scale(.4); opacity:0}}
+
+/* 움직임 민감 사용자: 이동 제거, 페이드만 유지 */
+@media (prefers-reduced-motion: reduce){
+  #modal-card{transform:none; opacity:0; transition:opacity 150ms ease}
+  #modal.show #modal-card{transform:none; opacity:1}
+  #popover,#move-card{transform:none}
+  .bullet.just-done,.bullet.just-done .bsym{animation:none}
+}

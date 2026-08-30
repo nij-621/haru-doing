@@ -27,6 +27,7 @@ const TASK_ICONS = [
   { id: 'sleep', label: 'Sleep', category: 'routine' },
   { id: 'nap', label: 'Nap', category: 'routine' },
   { id: 'shower', label: 'Shower', category: 'routine' },
+  { id: 'makeup', label: 'Make up', category: 'routine' },
   { id: 'meal', label: 'Meal', category: 'food' },
   { id: 'breakfast', label: 'Breakfast', category: 'food' },
   { id: 'lunch', label: 'Lunch', category: 'food' },
@@ -62,6 +63,7 @@ const TASK_ICONS = [
   { id: 'art', label: 'Art', category: 'fun' },
   { id: 'music', label: 'Music', category: 'fun' },
   { id: 'movie', label: 'Movie', category: 'fun' },
+  { id: 'photo', label: 'Photo', category: 'fun' },
   { id: 'game', label: 'Game', category: 'fun' },
 ];
 
@@ -84,6 +86,7 @@ const EMOJI_TO_ICON = {
   '🍚': 'meal', '🧹': 'clean', '🛒': 'shopping', '💻': 'laptop', '☕': 'coffee',
   '🎨': 'art', '😴': 'sleep',
   '🦷': 'hospital', '📄': 'note', '📥': 'note', '🏠': 'home', '📅': 'calendar', '⚙️': 'note',
+  '💄': 'makeup', '📷': 'photo', '📸': 'photo',
 };
 
 const TASK_ICON_IDS = new Set(TASK_ICONS.map(i => i.id));

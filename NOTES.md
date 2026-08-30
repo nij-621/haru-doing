@@ -105,21 +105,13 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 2. `icons-data.js`에 해당 Lucide SVG 데이터 추가 — Lucide 아이콘 이름을 골라 `https://unpkg.com/lucide-static@latest/icons/<name>.svg`에서 내부 path만 넣기 (기존 생성 스크립트 방식 참고)
 3. 필요하면 `EMOJI_TO_ICON`에 옛 이모지 매핑 추가
 
-## 11. 백로그 (검토 완료, 미진행 — Emil 디자인 리뷰 2·3순위)
-`.claude/skills/emil-design-eng` 스킬 기준으로 리뷰한 결과. 1순위(버그 4건)는 이력 18번에서 완료.
+## 11. 백로그 (Emil 디자인 리뷰)
+`.claude/skills/emil-design-eng` 스킬 기준으로 리뷰한 결과. 1순위(버그 4건)는 이력 18번, 2순위(등장 애니메이션)와 3순위 중 완료 체크 피드백은 이력 26번에서 완료 (2026-08-29 복원된 현재 루브릭과 대조 후 진행).
 
-**2순위 — 등장 애니메이션 (현재 모달·팝오버가 hidden 토글로 즉시 등장):**
-- New task 바텀시트: translateY(100%)→0, 300~350ms, drawer 커브 `cubic-bezier(0.32,0.72,0,1)` + dim 페이드
-- 상태 팝오버: scale(0.95)+opacity, 150ms ease-out, transform-origin을 불렛 위치로
-- Move 다이얼로그: scale(0.96)+opacity, 200ms ease-out, origin 중앙 유지 (모달은 예외)
-- 커스텀 이징 토큰 추가: `--ease-out: cubic-bezier(0.23,1,0.32,1)` / 전부 300ms 이하
-- `prefers-reduced-motion` 대응 (움직임 제거, opacity만)
-- 주의: 탭 전환·날짜 스와이프는 하루 수십 번 쓰므로 애니메이션 넣지 말 것 (Emil 빈도 프레임워크)
-
-**3순위 — 선택:**
-- 드래그 놓을 때 카드가 새 위치로 200ms ease-out 스냅 (지금은 순간이동)
-- 타임라인 카드 불렛(오른쪽)이 화면 하단에서 FAB에 가려짐 — 여백 or 불렛 위치 재검토 (리스트 뷰는 왼쪽 불렛이라 일관성 이슈)
-- 완료 시 불렛 체크 마이크로 피드백 (아주 절제해서)
+**3순위 — 남은 것 (선택):**
+- 드래그 놓을 때 카드가 새 위치로 200ms ease-out 스냅 (지금은 순간이동) — 실기기 드래그 검증 필요
+- 타임라인 카드 불렛(오른쪽)이 화면 하단에서 FAB에 가려짐 — 여백 or 불렛 위치 재검토 (리스트 뷰는 왼쪽 불렛이라 일관성 이슈). 모션이 아닌 레이아웃 이슈
+- 주의: 탭 전환·날짜 스와이프는 하루 수십 번 쓰므로 애니메이션 넣지 말 것 (Emil 빈도 프레임워크 — 리스트 스태거도 같은 이유로 제외)
 
 ## 12. 지금까지의 작업 이력 (이 세션에서 만든 것)
 1. 앱 기본 구축: Today(리스트/타임라인)·Inbox·All·Settings, 기분/한줄일기, 이미지 저장, 백업(내보내기/가져오기)
@@ -159,3 +151,5 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 23. **기분 선택지 균형 조정** (sw 캐시 v10): 겹치는 Good/Down을 선택 목록에서 제외하고 Calm/Stressed를 추가해 긍정·부정 및 각성도를 고르게 구성. 기존 `mood-good`/`mood-down` 기록은 계속 표시. Sick은 기절·KO로 읽힐 수 있는 X자 눈을 없애고 점 눈 + 울렁이는 물결 입으로 수정
 24. **PWA 업데이트 즉시 반영 구조** (sw 캐시 v11): index.html의 로컬 CSS/JS/manifest URL에 빌드 버전을 붙여 이전 파일 캐시와 분리. 서비스 워커 설치 시 HTTP 캐시를 우회해 셸 파일을 다시 받고, 앱 셸 요청도 네트워크에서 최신 응답을 확인. 새 서비스 워커가 제어권을 얻으면 앱을 한 번 자동 새로고침하며, 등록·앱 재진입 시 `updateViaCache: 'none'`과 `reg.update()`로 업데이트 확인을 강제
 25. **타임라인 시간 비례 블록 + 겹침 표기** (sw 캐시 v12): 레일 위 원형 도트를 소요시간에 비례하는 캡슐 블록으로 교체(`tlHeight`, 1.7px/분·44~260px). 좌측 거터에 시작/끝 시각을 블록 위아래 경계에 표시하고, 다음 일정이 바로 이어지면 끝 라벨은 생략. 시간이 겹치면 두 블록 사이에 렌즈 도형 + `Tasks are overlapping · 30m` 마커(앰버 `--defer`)를 넣고 양쪽 블록에 앰버 링. 빈 시간 커넥터 라벨은 시각 범위 대신 남는 시간(`50m free`)으로 변경(거터 라벨과 중복 제거). `fmtDur()` 헬퍼 추가. 프리뷰용 `.claude/launch.json` 신규 생성(serve.ps1 → localhost:8321)
+26. **등장/퇴장 모션** (sw 캐시 v13 — Emil 리뷰 2순위 전부 + 3순위 완료 체크): `hidden` 토글을 `showLayer()/hideLayer()`(`.show` 클래스 전환, 퇴장 완료 후 hidden) 구조로 교체. 이징 토큰 `--ease-out`/`--ease-drawer` 추가. New task 시트 320ms drawer 커브 + dim 페이드(퇴장 260ms), 상태 팝오버 scale(.95) 150ms(origin을 JS가 불렛 좌표로 지정, 퇴장 120ms), Move 다이얼로그 scale(.96) 200ms 중앙 origin(퇴장 150ms), 완료 불렛 260ms 팝 + 체크 스케일 등장(`flashDoneId` — setStatus가 재렌더 직후 새 불렛에 `just-done` 부여, 불렛 sym은 `<span class="bsym">`로 감쌈). `prefers-reduced-motion`은 이동 제거·페이드만. 탭 전환·스와이프·스태거는 빈도 프레임워크상 의도적으로 제외. 완료 카드 자체의 가라앉는 전환은 전체 재렌더 구조상 미적용. 사전 목업: claude.ai 아티팩트 "HaruDoing 모션 개선안". 참고: `icons-data.js`의 `mood-sad` path 잘림(콘솔 오류, 이 작업과 무관한 기존 버그)은 별도 건으로 분리 → 27번에서 수정
+27. **mood-sad path 수정 + Make up/Photo 아이콘** (sw 캐시 v14): `mood-sad` 입 곡선 path 끝의 `-4 2` 누락 복원(렌더마다 나던 콘솔 오류 해소). 태스크 아이콘 `makeup`(Lucide brush, Routine — Lucide에 lipstick이 없어 화장 브러시로)·`photo`(Lucide camera, Fun) 추가, `EMOJI_TO_ICON`에 💄→makeup, 📷/📸→photo 매핑

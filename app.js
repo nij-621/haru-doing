@@ -128,12 +128,27 @@ function carryOver() {
   return n;
 }
 
+/* ---------- 레이어 등장/퇴장 (hidden 토글 → .show 클래스 전환, 퇴장 전환이 끝난 뒤 hidden) ---------- */
+function showLayer(el) {
+  clearTimeout(el._hideT);
+  if (el.hidden) { el.hidden = false; void el.offsetHeight; } // 초기 상태를 렌더한 뒤 전환 시작
+  el.classList.add('show');
+}
+function hideLayer(el) {
+  el.classList.remove('show');
+  clearTimeout(el._hideT);
+  el._hideT = setTimeout(() => { el.hidden = true; }, 320); // 최장 퇴장(260ms)보다 여유 있게
+}
+
 /* ---------- 상태 변경 ---------- */
+let flashDoneId = null; // 방금 완료된 task — 재렌더 직후 불렛에 확인 피드백
 function setStatus(item, st) {
   let t = item.virtual ? materialize(item) : item;
   t.status = st;
+  if (st === 'done') flashDoneId = t.id;
   save();
   render();
+  flashDoneId = null;
   // Doing/Defer → 어디로 옮길지 물어보기 (두잉두잉 스타일)
   if ((st === 'doing' || st === 'defer') && t.date) openMoveDialog(t);
 }
@@ -147,9 +162,9 @@ function openMoveDialog(t) {
   const d = parseDate(t.date);
   d.setDate(d.getDate() + 1);
   $('#mv-date').value = fmt(d);
-  $('#move-modal').hidden = false;
+  showLayer($('#move-modal'));
 }
-function closeMoveDialog() { $('#move-modal').hidden = true; moveTask = null; }
+function closeMoveDialog() { hideLayer($('#move-modal')); moveTask = null; }
 function moveCopy(targetDate) {
   const t = moveTask;
   closeMoveDialog();
@@ -303,8 +318,9 @@ function taskRow(t, opts = {}) {
 
   const bullet = document.createElement('button');
   bullet.className = 'bullet';
-  bullet.textContent = STATUS[t.status].sym;
+  bullet.innerHTML = `<span class="bsym">${STATUS[t.status].sym}</span>`;
   bullet.title = STATUS[t.status].label;
+  if (t.id === flashDoneId && t.status === 'done') bullet.classList.add('just-done');
   bullet.onclick = e => { e.stopPropagation(); openStatusPopover(bullet, t); };
   row.appendChild(bullet);
 
@@ -514,8 +530,9 @@ function seqCard(t, isNext, opts = {}) {
   if (t.note) item.querySelector('.tls-sub').textContent += '  ·  ' + t.note;
   const bullet = document.createElement('button');
   bullet.className = 'bullet';
-  bullet.textContent = STATUS[t.status].sym;
+  bullet.innerHTML = `<span class="bsym">${STATUS[t.status].sym}</span>`;
   bullet.title = STATUS[t.status].label;
+  if (t.id === flashDoneId && t.status === 'done') bullet.classList.add('just-done');
   bullet.onclick = e => { e.stopPropagation(); openStatusPopover(bullet, t); };
   item.querySelector('.tls-card').appendChild(bullet);
   item.querySelector('.tls-card').onclick = e => {
@@ -745,18 +762,23 @@ function openStatusPopover(anchor, item) {
   for (const [key, s] of Object.entries(STATUS)) {
     const b = document.createElement('button');
     b.innerHTML = `${s.sym}<small>${s.label}</small>`;
-    b.onclick = e => { e.stopPropagation(); pop.hidden = true; setStatus(item, key); };
+    b.onclick = e => { e.stopPropagation(); hideLayer(pop); setStatus(item, key); };
     pop.appendChild(b);
   }
   pop.hidden = false;
   const r = anchor.getBoundingClientRect();
   const pw = pop.offsetWidth;
-  pop.style.left = Math.min(Math.max(r.left, 8), window.innerWidth - pw - 8) + 'px';
-  pop.style.top = (r.bottom + 6 + pop.offsetHeight > window.innerHeight ? r.top - pop.offsetHeight - 6 : r.bottom + 6) + 'px';
+  const left = Math.min(Math.max(r.left, 8), window.innerWidth - pw - 8);
+  const above = r.bottom + 6 + pop.offsetHeight > window.innerHeight;
+  pop.style.left = left + 'px';
+  pop.style.top = (above ? r.top - pop.offsetHeight - 6 : r.bottom + 6) + 'px';
+  // 눌린 불렛 위치에서 펼쳐지도록 origin 지정
+  pop.style.transformOrigin = `${r.left + r.width / 2 - left}px ${above ? '100%' : '0'}`;
+  showLayer(pop);
 }
 document.addEventListener('pointerdown', e => {
   const pop = $('#popover');
-  if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.bullet')) pop.hidden = true;
+  if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.bullet')) hideLayer(pop);
 });
 
 /* ---------- 모달 ---------- */
@@ -776,10 +798,10 @@ function openModal(item, preset = {}) {
   buildPicks();
   $('#btn-del').hidden = !item;
   $('#btn-del-series').hidden = !(item && (item.tplId || item.repeatOf));
-  $('#modal').hidden = false;
+  showLayer($('#modal'));
   if (!item) $('#f-title').focus();
 }
-function closeModal() { $('#modal').hidden = true; editing = null; }
+function closeModal() { hideLayer($('#modal')); editing = null; }
 
 /* TaskIconPicker: 카테고리별 라인 아이콘 선택 */
 function buildPicks() {
