@@ -799,7 +799,12 @@ function openModal(item, preset = {}) {
   $('#btn-del').hidden = !item;
   $('#btn-del-series').hidden = !(item && (item.tplId || item.repeatOf));
   showLayer($('#modal'));
-  if (!item) $('#f-title').focus();
+  // iOS: 시트가 올라오는 중에 키보드가 뜨면 자동 스크롤이 어긋나 카드가 맨 아래로 열림
+  // → 포커스의 자동 스크롤을 끄고, 열릴 때와 전환 종료 후 스크롤을 맨 위로 고정
+  if (!item) $('#f-title').focus({ preventScroll: true });
+  const card = $('#modal-card');
+  card.scrollTop = 0;
+  setTimeout(() => { card.scrollTop = 0; }, 360);
 }
 function closeModal() { hideLayer($('#modal')); editing = null; }
 
