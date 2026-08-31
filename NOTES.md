@@ -155,3 +155,4 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 27. **mood-sad path 수정 + Make up/Photo 아이콘** (sw 캐시 v14): `mood-sad` 입 곡선 path 끝의 `-4 2` 누락 복원(렌더마다 나던 콘솔 오류 해소). 태스크 아이콘 `makeup`(Lucide brush, Routine — Lucide에 lipstick이 없어 화장 브러시로)·`photo`(Lucide camera, Fun) 추가, `EMOJI_TO_ICON`에 💄→makeup, 📷/📸→photo 매핑
 28. **New task 시트 iOS 스크롤 버그 수정** (sw 캐시 v15): 26번 모션 도입 후 아이폰에서 ＋를 누르면 시트가 맨 아래(Notes/Save)로 스크롤된 채 열리던 문제. 시트가 올라오는 전환 중에 제목 포커스로 키보드가 뜨면서 iOS가 `#modal-card` 내부 스크롤을 잘못 계산한 것 → `focus({preventScroll:true})` + 열릴 때·전환 종료(360ms) 후 `scrollTop=0` 고정
 29. **반복 주기 Monthly/Quarterly/Yearly 추가** (sw 캐시 v16): `repeatMatches()`에 월(템플릿과 같은 '일')·분기(3개월 간격 + 같은 '일')·연(같은 월·일) 매칭 추가. 그 달에 없는 날(29~31일 템플릿)은 **말일로 당김** (예: 매월 31일 → 4/30, 2/28). `#f-repeat` 옵션과 All 탭 검색의 반복 라벨 맵도 갱신
+30. **"Save as image" 기능 삭제** (sw 캐시 v17): 헤더 카메라 버튼(`#btn-snap`)·`saveAsImage()`·숨은 `#snap-canvas` 제거. iOS 홈 화면 PWA에서는 `<a download>` 클릭이 무시돼 작동한 적이 없었고, 캔버스 결과물도 앱 폰트·아이콘 없이 그려져 스크린캡처보다 못해 사용자 결정으로 삭제

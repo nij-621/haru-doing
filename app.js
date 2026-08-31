@@ -901,62 +901,6 @@ function deleteEditing(series) {
   render();
 }
 
-/* ---------- 이미지로 저장 (두잉두잉) ---------- */
-function saveAsImage() {
-  const list = tasksForDay(cur);
-  const day = days[cur] || {};
-  const d = parseDate(cur);
-  const W = 720, pad_ = 46, lh = 52;
-  const H = 210 + Math.max(list.length, 1) * lh + (day.diary ? 60 : 0) + 60;
-  const cv = $('#snap-canvas');
-  cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d');
-  const dark = document.documentElement.dataset.theme === 'dark';
-  ctx.fillStyle = dark ? '#171614' : '#f6f5f3';
-  ctx.fillRect(0, 0, W, H);
-  const ink = dark ? '#edeae4' : '#292723', ink2 = dark ? '#97928a' : '#8d897f';
-  ctx.fillStyle = ink;
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillText(`${MONTHS[d.getMonth()]} ${d.getDate()} (${WEEKDAYS[d.getDay()]})`, pad_, 74);
-  if (day.mood) { ctx.font = '38px sans-serif'; ctx.fillText((moodOf(day.mood) || { emoji: day.mood }).emoji, W - pad_ - 44, 76); }
-  ctx.strokeStyle = ink2; ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.moveTo(pad_, 104); ctx.lineTo(W - pad_, 104); ctx.stroke();
-  ctx.setLineDash([]);
-  let y = 160;
-  ctx.font = '26px sans-serif';
-  if (!list.length) { ctx.fillStyle = ink2; ctx.fillText('No entries', pad_, y); y += lh; }
-  const stColor = { todo: ink2, doing: '#4e80c9', done: '#3fa372', defer: '#d99a3d', cancel: ink2 };
-  for (const t of list) {
-    ctx.fillStyle = stColor[t.status];
-    ctx.font = 'bold 26px sans-serif';
-    ctx.fillText(STATUS[t.status].sym, pad_, y);
-    ctx.fillStyle = (t.status === 'done' || t.status === 'cancel') ? ink2 : ink;
-    ctx.font = '26px sans-serif';
-    // 아이콘 id/구 이모지는 캔버스에 그리지 않음 (라인 아이콘은 텍스트로 표현 불가)
-    const drawEmoji = t.emoji && !TASK_ICON_IDS.has(t.emoji) && !EMOJI_TO_ICON[t.emoji];
-    const label = (t.time ? t.time + '  ' : '') + (drawEmoji ? t.emoji + ' ' : '') + t.title;
-    ctx.fillText(label, pad_ + 44, y, W - pad_ * 2 - 44);
-    if (t.status === 'done' || t.status === 'cancel') {
-      const w = Math.min(ctx.measureText(label).width, W - pad_ * 2 - 44);
-      ctx.strokeStyle = ink2; ctx.beginPath();
-      ctx.moveTo(pad_ + 44, y - 9); ctx.lineTo(pad_ + 44 + w, y - 9); ctx.stroke();
-    }
-    y += lh;
-  }
-  if (day.diary) {
-    y += 16;
-    ctx.fillStyle = ink2; ctx.font = 'italic 24px sans-serif';
-    ctx.fillText('“' + day.diary + '”', pad_, y, W - pad_ * 2);
-    y += 40;
-  }
-  ctx.fillStyle = ink2; ctx.font = '18px sans-serif';
-  ctx.fillText('HaruDoing', W - pad_ - 90, H - 26);
-  const a = document.createElement('a');
-  a.download = `HaruDoing_${cur}.png`;
-  a.href = cv.toDataURL('image/png');
-  a.click();
-}
-
 /* ---------- 백업 ---------- */
 function exportData() {
   const payload = { tasks, days, settings, exportedAt: new Date().toISOString() };
@@ -1066,7 +1010,6 @@ function bind() {
       shiftDay(dx > 0 ? -1 : 1);
     }
   }, { passive: true });
-  $('#btn-snap').onclick = saveAsImage;
   $('#mood-line').onclick = () => { moodOpen = true; renderToday(); };
   $('#diary-ghost').onclick = () => { diaryOpen = true; renderToday(); $('#diary-input').focus(); };
   $('#diary-input').addEventListener('change', e => {
