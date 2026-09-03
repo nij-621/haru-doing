@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -17,9 +17,9 @@
 
 <header id="topbar">
   <div class="date-nav">
-    <button id="btn-prev" class="icon-btn" aria-label="Previous day">??/button>
+    <button id="btn-prev" class="icon-btn" aria-label="Previous day">‹</button>
     <button id="btn-date" class="date-label"></button>
-    <button id="btn-next" class="icon-btn" aria-label="Next day">??/button>
+    <button id="btn-next" class="icon-btn" aria-label="Next day">›</button>
   </div>
   <div class="top-actions">
     <button id="btn-today" class="chip-btn">Today</button>
@@ -63,14 +63,14 @@
   <!-- All (monthly) tab -->
   <section id="tab-month" hidden>
     <div id="search-bar">
-      <input id="search-input" type="search" placeholder="Search tasks ??find when you did something">
-      <button id="search-clear" class="icon-btn" hidden>??/button>
+      <input id="search-input" type="search" placeholder="Search tasks — find when you did something">
+      <button id="search-clear" class="icon-btn" hidden>✕</button>
     </div>
     <div id="search-results" hidden></div>
     <div class="month-nav">
-      <button id="btn-mprev" class="icon-btn">??/button>
+      <button id="btn-mprev" class="icon-btn">‹</button>
       <span id="month-label"></span>
-      <button id="btn-mnext" class="icon-btn">??/button>
+      <button id="btn-mnext" class="icon-btn">›</button>
     </div>
     <div id="month-list"></div>
   </section>
@@ -103,7 +103,7 @@
     </div>
     <div class="card set-card" id="work-settings">
       <div class="set-head">Work tracking</div>
-      <label class="set-row">Base hours Mon?밫hu <input id="ws-base" type="text" class="dur-input" placeholder="8:00"></label>
+      <label class="set-row">Base hours Mon–Thu <input id="ws-base" type="text" class="dur-input" placeholder="8:00"></label>
       <label class="set-row">Base hours Friday <input id="ws-fri" type="text" class="dur-input" placeholder="6:30"></label>
       <label class="set-row">Lunch deduction (min) <input id="ws-lunch" type="number" class="dur-input" min="0" max="120" step="5"></label>
       <label class="set-row">Daily overtime cap <input id="ws-cap" type="text" class="dur-input" placeholder="2:00"></label>
@@ -116,7 +116,7 @@
       <input id="import-file" type="file" accept=".json" hidden>
       <button id="btn-wipe" class="wide-btn danger"><span data-ui-icon="trash" data-size="17"></span>Delete all data</button>
     </div>
-    <p class="about">HaruDoing 쨌 my personal day planner<br>All data stays on this device only.</p>
+    <p class="about">HaruDoing · my personal day planner<br>All data stays on this device only.</p>
   </section>
 </main>
 
@@ -135,7 +135,7 @@
 <!-- Move task dialog (shown after Doing/Defer) -->
 <div id="move-modal" hidden>
   <div id="move-card">
-    <button id="mv-tomorrow" class="mv-btn mv-top">竊?Add to tomorrow's tasks</button>
+    <button id="mv-tomorrow" class="mv-btn mv-top">＋ Add to tomorrow's tasks</button>
     <button id="mv-pick" class="mv-btn">Pick another date</button>
     <div id="mv-date-row" hidden>
       <input id="mv-date" type="date">
@@ -203,11 +203,11 @@
 <!-- Work report (full-screen overlay) -->
 <section id="work-report" hidden>
   <header id="wr-top">
-    <button id="wr-back" class="icon-btn" aria-label="Close report">??/button>
+    <button id="wr-back" class="icon-btn" aria-label="Close report">‹</button>
     <div class="month-nav">
-      <button id="wr-mprev" class="icon-btn">??/button>
+      <button id="wr-mprev" class="icon-btn">‹</button>
       <span id="wr-month"></span>
-      <button id="wr-mnext" class="icon-btn">??/button>
+      <button id="wr-mnext" class="icon-btn">›</button>
     </div>
     <button id="wr-csv" class="chip-btn">CSV</button>
   </header>
@@ -244,11 +244,11 @@
     <div class="f-row">
       <label>Work periods</label>
       <div id="wm-segs"></div>
-      <button id="wm-addseg" class="mini-btn">竊?Add period</button>
+      <button id="wm-addseg" class="mini-btn">＋ Add period</button>
     </div>
     <div class="f-row">
       <label>Company entry override (optional)</label>
-      <div class="wm-seg"><input id="wm-es" type="time"><span>??/span><input id="wm-ee" type="time"></div>
+      <div class="wm-seg"><input id="wm-es" type="time"><span>–</span><input id="wm-ee" type="time"></div>
     </div>
     <input id="wm-note" type="text" maxlength="60" placeholder="Note (e.g. business trip location)">
     <div class="wm-btns">
