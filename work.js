@@ -3,15 +3,18 @@
    데이터: hd.work / hd.workSettings (app.js의 hd.tasks와 완전 분리)
    규칙:
    - 기준시간: 월–목 8h, 금 6.5h (설정에서 변경 가능), 주말·휴가·공휴일·병가는 0
-   - 점심: 구간 사이 30분 이상 공백이 있으면 추가 공제 없음, 없으면 하루 1회 30분 공제.
-     단, 6시간 이하 근무한 날은 공제 없음 (오스트리아 AZG: 휴게 의무는 6시간 초과부터 —
-     회사 시스템도 동일하게 동작함을 사용자가 확인)
+   - 점심(실제 계산): 2026-09-01부터 — 6시간 초과 근무일은 공백 여부와 무관하게 하루 1회
+     30분 공제. 그 전 날짜는 옛 규칙(공백 30분+ 있으면 공제 없음, 6시간 이하 공제 없음) —
+     이미 회사 장부와 맞춘 과거 잔고를 보존하기 위해 날짜로 분기
+   - 점심(Entry/회사 시스템): 입력 블록 6시간 초과 시에만 공제 (2026-09-03 사용자 재확인)
    - 회사 입력 추천: 하루 한 블록(시작–종료), 종료 = 시작 + 순근무 + 점심(6시간 초과 시
      시스템이 공제), 15분 단위 반올림, 초과근무 상한 +2h, 차이는 Left overtime 잔고로 */
 (function () {
 
 const WTYPES = { work: 'Work', vacation: 'Vacation', holiday: 'Holiday', sick: 'Sick' };
-const NO_LUNCH_MAX = 360; // 6시간 이하 근무일은 점심 공제 없음 (AZG, 회사 시스템 동일)
+const NO_LUNCH_MAX = 360;             // 회사 시스템: 입력 블록 6시간 이하는 점심 공제 없음 (Entry 전용)
+const DEDUCT_MIN = 360;               // 실제 계산: 6시간 초과 근무일은 점심 공제 (AZG 휴게 의무 기준)
+const LUNCH_RULE_FROM = '2026-09-01'; // 이 날짜부터 새 규칙 — 이전 날짜는 옛 규칙(과거 잔고 보존)
 
 let work = {};   // 'YYYY-MM-DD' -> { seg:[{s,e|null}], home, type, note, entry:{s,e}|null, entered }
 let wcfg = {
@@ -74,8 +77,9 @@ function dayInfo(ds) {
       prevEnd = prevEnd === null ? e : Math.max(prevEnd, e);
     } else if (prevEnd === null) prevEnd = s;
   }
-  // 점심 공제: 공백(휴식)을 안 찍었고 6시간 초과 근무한 날만 (AZG 휴게 의무 기준)
-  const deducted = gross > NO_LUNCH_MAX && !gap;
+  // 점심 공제 — 새 규칙(2026-09-01~): 6시간 초과면 공백 여부와 무관하게 공제
+  //             옛 규칙(그 이전): 공백을 안 찍었고 6시간 초과한 날만
+  const deducted = ds >= LUNCH_RULE_FROM ? gross > DEDUCT_MIN : (gross > NO_LUNCH_MAX && !gap);
   const net = gross ? (deducted ? Math.max(0, gross - wcfg.lunch) : gross) : 0;
   return { rec, off, base, gross, net, gap, deducted, open, diff: net - base, hasData: !!rec };
 }
@@ -208,7 +212,7 @@ function renderWorkCard() {
           const mins = sg.e ? t2m(sg.e) - t2m(sg.s) : (isToday ? nowM() - t2m(sg.s) : 0);
           h += `<div class="wk-seg${openNow ? ' run' : ''}"><span>${sg.s} – ${end}</span><span>${mins > 0 ? fmtDur(mins) : ''}${openNow && isToday ? '…' : ''}</span></div>`;
         }
-        if (info.deducted) h += `<div class="wk-lunch">Lunch −${fmtDur(wcfg.lunch)} (no break logged)</div>`;
+        if (info.deducted) h += `<div class="wk-lunch">Lunch −${fmtDur(wcfg.lunch)}</div>`;
         h += '</div>';
       }
     }
@@ -459,7 +463,7 @@ function exportCsv() {
   const [y, mo] = wrMonth.split('-').map(Number);
   const daysIn = new Date(y, mo, 0).getDate();
   const { map } = entriesThrough(`${y}-${pad(mo)}-${pad(daysIn)}`);
-  const rows = [['Date', 'Day', 'Type', 'Home', 'Periods', 'Net', 'Base', 'Actual diff', 'Entry start', 'Entry end', 'Entry net', 'Banked', 'Balance', 'Note']];
+  const rows = [['Date', 'Day', 'Type', 'Home', 'Periods', 'Gross', 'Lunch', 'Net', 'Base', 'Actual diff', 'Entry start', 'Entry end', 'Entry net', 'Banked', 'Balance', 'Note']];
   for (let day = 1; day <= daysIn; day++) {
     const ds = `${y}-${pad(mo)}-${pad(day)}`;
     const rec = work[ds];
@@ -469,6 +473,7 @@ function exportCsv() {
     rows.push([
       ds, WEEKDAYS[parseDate(ds).getDay()], rec.type || 'work', rec.home ? 'yes' : '',
       sortedSegs(rec).map(sg => `${sg.s}-${sg.e || ''}`).join(' '),
+      fmtDur(info.gross), info.deducted ? fmtSign(-wcfg.lunch) : '',
       fmtDur(info.net), fmtDur(info.base), fmtSign(info.diff),
       ent && ent.s ? ent.s : '', ent && ent.e ? ent.e : '',
       ent && ent.net !== undefined && !ent.offType ? fmtDur(ent.net) : '',
