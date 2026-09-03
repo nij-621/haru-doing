@@ -1,5 +1,5 @@
 /* 하루두잉 서비스 워커: 오프라인 캐시 + (Windows 11 Edge) 위젯 */
-const BUILD = '17';
+const BUILD = '19';
 const CACHE = `hd-shell-v${BUILD}`;
 const V = `?v=${BUILD}`;
 const SHELL = [
