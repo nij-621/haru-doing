@@ -92,9 +92,9 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 ## 8. 배포 (GitHub Pages)
 - 저장소: `nij-621/haru-doing` (Public) → 공개되는 건 코드뿐, **할 일 데이터는 폰/PC에만 저장**
 - 공개 URL: https://nij-621.github.io/haru-doing/
-- **업데이트 방법**: GitHub에서 Add file → Upload files → 바뀐 파일 드래그(같은 이름은 자동 교체) → Commit changes → 1~2분 뒤 반영
+- **업데이트 방법**: (a) GitHub에서 Add file → Upload files → 바뀐 파일 드래그(같은 이름은 자동 교체) → Commit changes, 또는 (b) Claude Code가 `gh` 인증(nij-621)으로 리포를 임시 폴더에 clone → 바뀐 파일 복사 → commit → main push. 1~2분 뒤 반영. **이 작업 폴더 자체는 배포 리포와 연결돼 있지 않음**(상위 `Claude 작업실` 로컬 리포, 원격 없음)
 - **폰 반영**: 앱을 완전히 종료 후 다시 열기. 안 되면 한 번 더 (서비스워커 캐시 때문)
-- ⚠️ **셸 파일(html/css/js) 수정 후엔 `sw.js`의 `CACHE` 상수 버전을 올리면**(예: hd-shell-v2 → v3) 폰에서 새 버전이 더 확실히 적용됨
+- ⚠️ **셸 파일(html/css/js) 수정 후엔 빌드 버전을 세 곳 같이 올린다**: `sw.js`의 `BUILD`(캐시 이름 `hd-shell-v…`), `index.html`의 로컬 자원 `?v=…` 6곳, `app.js`의 `APP_BUILD`. 2026-09-13부터 `2.1` 식 표기(이전엔 정수 v19까지). 셋이 어긋나면 온라인에선 문제 없지만(네트워크 우선) 오프라인 폴백 캐시 매칭이 빗나감
 
 ## 9. 로컬 실행/테스트
 - `Start-HaruDoing.bat` 더블클릭 또는 `serve.ps1` 실행 → http://localhost:8321
@@ -157,3 +157,4 @@ createdAt   생성 시각 (인박스 정렬에 사용)
 29. **반복 주기 Monthly/Quarterly/Yearly 추가** (sw 캐시 v16): `repeatMatches()`에 월(템플릿과 같은 '일')·분기(3개월 간격 + 같은 '일')·연(같은 월·일) 매칭 추가. 그 달에 없는 날(29~31일 템플릿)은 **말일로 당김** (예: 매월 31일 → 4/30, 2/28). `#f-repeat` 옵션과 All 탭 검색의 반복 라벨 맵도 갱신
 30. **"Save as image" 기능 삭제** (sw 캐시 v17): 헤더 카메라 버튼(`#btn-snap`)·`saveAsImage()`·숨은 `#snap-canvas` 제거. iOS 홈 화면 PWA에서는 `<a download>` 클릭이 무시돼 작동한 적이 없었고, 캔버스 결과물도 앱 폰트·아이콘 없이 그려져 스크린캡처보다 못해 사용자 결정으로 삭제
 31. **점심 공제 규칙 변경 + CSV Gross/Lunch 열** (sw 캐시 v19): 실제 계산(`dayInfo`)의 점심 공제를 2026-09-01부터 새 규칙으로 — 6시간 초과 근무일은 **구간 사이 공백 여부와 무관하게** 하루 1회 30분 공제(`DEDUCT_MIN=360`, `LUNCH_RULE_FROM`). 처음엔 4시간 초과로 구현했다가 사용자 결정으로 6시간 초과로 확정(옛 규칙·AZG·회사 시스템과 같은 문턱, 달라진 건 공백 예외 삭제뿐). 그 이전 날짜는 옛 규칙(공백 30분+ 있으면 공제 없음) 유지 — 이미 회사 장부와 맞춘 과거 잔고 보존을 위해 날짜로 분기. Entry(회사 시스템 시뮬레이션)는 기존대로 입력 블록 6시간 초과 시에만 공제(`NO_LUNCH_MAX=360`, 회사 시스템 동작 그대로). CSV 내보내기에 `Gross`(공제 전)·`Lunch`(공제액, 공제된 날만 `-0:30`) 열을 Net 앞에 추가. 카드의 "Lunch −0:30 (no break logged)" 문구에서 괄호 설명 제거(이제 공백을 찍어도 공제되므로). 검증: 로컬 프리뷰에서 9월(공백 있는 날 공제·6.5h 공제·5h 비공제)과 8월(옛 규칙 그대로) 케이스 확인, 콘솔 오류 0
+32. **New task 시트 Date/Time 필드 iOS 레이아웃 수정** (빌드 v20 → v2.1): 아이폰에서 Date 열이 Time 열을 침범해 겹치던 문제 — iOS 사파리의 `date`/`time` 입력은 값 글자 폭을 최소 너비로 고집하고 `.f-row.two label`이 `min-width:auto`라 줄어들지 못한 것. `label`·`input`에 `min-width:0`, `#f-date/#f-time`에 `appearance:none`, `::-webkit-date-and-time-value`에 `text-align:left; min-width:0`. 이어서 Time이 비어 있으면 값 영역 높이가 0으로 접혀 Date보다 낮은 박스가 되던 문제 → 두 입력 `line-height:1.4` + 값 영역 `min-height:1.4em`으로 높이 통일(Duration 셀렉트와도 동일 46px). 데스크톱에선 재현 안 됨. 빌드 표기를 사용자 요청으로 `2.1`로 변경하며 `index.html ?v=`(19)·`app.js APP_BUILD`(11)가 `sw.js`와 따로 놀던 것도 함께 동기화(8절 참고). 배포는 gh CLI clone → push 방식으로 진행(커밋 7e0f6e8·3e58478·5f23617)
