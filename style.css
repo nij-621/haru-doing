@@ -407,12 +407,14 @@ main{max-width:640px; margin:0 auto; padding:16px}
 .f-row{margin-bottom:14px}
 .f-row>label:first-child{display:block; font-size:.72rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; margin-bottom:6px}
 .f-row.two{display:flex; gap:10px}
-.f-row.two label{flex:1; display:flex; flex-direction:column; font-size:.72rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; gap:6px}
-.f-row.two input,.f-row.two select{width:100%}
+.f-row.two label{flex:1 1 0; min-width:0; display:flex; flex-direction:column; font-size:.72rem; font-weight:800; color:var(--ink2); text-transform:uppercase; letter-spacing:.08em; gap:6px}
+.f-row.two input,.f-row.two select{width:100%; min-width:0}
 #color-picks{display:flex; gap:6px; flex-wrap:wrap}
 /* form fields as clearly visible, matching boxes */
 #f-title,#modal-card .f-row.two input,#modal-card .f-row.two select{border-color:var(--line)}
-#f-date,#f-time{min-height:38px}
+#f-date,#f-time{min-height:38px; -webkit-appearance:none; appearance:none}
+/* iOS: date/time 값 영역이 내용 폭을 강제해 두 열이 겹치던 문제 */
+#f-date::-webkit-date-and-time-value,#f-time::-webkit-date-and-time-value{text-align:left; min-width:0}
 /* icon/color are secondary: divider + quieter, compact picker */
 .f-secondary{margin-top:4px; padding-top:14px; border-top:1px solid var(--line)}
 .f-secondary .f-row:last-child{margin-bottom:6px}
