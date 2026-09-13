@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_BUILD = '11';
+const APP_BUILD = '2.1';
 /* 하루두잉 — 개인용 데일리 플래너 (두잉두잉 + Structured 스타일) */
 
 const $ = s => document.querySelector(s);
