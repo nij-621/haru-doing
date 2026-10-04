@@ -426,9 +426,9 @@ function renderReport() {
   if (!list.children.length) list.innerHTML = '<div class="empty-note">No work records this month.<br>Use Start work on the Today screen.</div>';
 
   $('#wr-summary').innerHTML = `
-    <div class="wr-metric"><small>${MONTHS[mo - 1]} overtime</small><b class="${cls(netSum - baseSum)}">${fmtSign(netSum - baseSum)}</b></div>
-    <div class="wr-metric"><small>Left overtime</small><b class="${cls(left)}">${fmtSign(left)}</b></div>
-    <div class="wr-sub">Worked ${fmtDur(netSum)} / ${fmtDur(baseSum)} · Entered ${fmtSign(entSum - entBase)}</div>`
+    <div class="wr-metric"><small>${MONTHS[mo - 1]} overtime</small><b class="${cls(netSum - baseSum)}">${fmtSign(netSum - baseSum)}</b><i>Actually worked extra this month</i></div>
+    <div class="wr-metric"><small>Left overtime</small><b class="${cls(left)}">${fmtSign(left)}</b><i>Not yet entered · total since ${from ? MONTHS[parseDate(from).getMonth()] + ' ' + parseDate(from).getFullYear() : 'start'}</i></div>
+    <div class="wr-sub">Worked ${fmtDur(netSum)} / ${fmtDur(baseSum)} · Entered ${fmtSign(entSum - entBase)} <span class="wr-hint">(in company system)</span></div>`
     + (missing ? `<div class="wr-note">${missing} weekday${missing > 1 ? 's' : ''} without a record — tap to fill or mark as vacation.</div>` : '');
 }
 
